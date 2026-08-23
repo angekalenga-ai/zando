@@ -3,6 +3,247 @@
 ===================================================== */
 
 "use strict";
+/* =====================================================
+   SUPABASE
+===================================================== */
+
+const SUPABASE_URL =
+    "https://kcrliiinrjlrcspnaeac.supabase.co";
+
+const SUPABASE_PUBLISHABLE_KEY =
+    "sb_publishable_iv3rzG16WGv7e7DObdzCNw_dDs4VDM3";
+
+const supabaseClient =
+    window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_PUBLISHABLE_KEY
+    );
+
+/* =====================================================
+   SUPABASE — TEST CONNECTION
+===================================================== */
+
+async function testSupabaseConnection() {
+    try {
+        const { data, error } = await supabaseClient
+            .from("products")
+            .select("id, name, price, currency, status")
+            .limit(5);
+
+        if (error) {
+            console.error("❌ Supabase:", error);
+            return;
+        }
+
+        console.log("✅ Supabase connecté !");
+        console.log("Produits:", data);
+
+    } catch (error) {
+        console.error("❌ Erreur connexion Supabase:", error);
+    }
+}
+
+/* =====================================================
+   PRODUCTS — SUPABASE
+===================================================== */
+
+async function loadSupabaseProducts() {
+
+    if (!productsGrid) return;
+
+    try {
+
+        const { data, error } = await supabaseClient
+            .from("products")
+            .select(`
+                id,
+                name,
+                description,
+                price,
+                compare_at_price,
+                currency,
+                stock_quantity,
+                status,
+                categories (
+                    name
+                ),
+                stores (
+                    name
+                ),
+                product_images (
+                    image_url,
+                    alt_text,
+                    sort_order
+                )
+            `)
+            .eq("status", "active")
+            .order("created_at", {
+                ascending: false
+            });
+
+        if (error) {
+            console.error(
+                "❌ Impossible de charger les produits Supabase :",
+                error
+            );
+            return;
+        }
+
+        console.log(
+            "✅ Produits Supabase chargés :",
+            data
+        );
+
+        if (!data || data.length === 0) {
+            console.log(
+                "ℹ️ Aucun produit actif dans Supabase."
+            );
+            return;
+        }
+
+        renderSupabaseProducts(data);
+
+    } catch (error) {
+
+        console.error(
+            "❌ Erreur chargement produits :",
+            error
+        );
+
+    }
+
+}
+
+
+/* =====================================================
+   RENDER SUPABASE PRODUCTS
+===================================================== */
+
+function renderSupabaseProducts(products) {
+
+    if (!productsGrid) return;
+
+    const html = products.map((product) => {
+
+        const category =
+            product.categories?.name ||
+            "Autre";
+
+        const currency =
+            product.currency || "USD";
+
+        const price =
+            Number(product.price || 0);
+
+        const oldPrice =
+            product.compare_at_price
+                ? Number(product.compare_at_price)
+                : null;
+
+        const image =
+            product.product_images
+                ?.sort(
+                    (a, b) =>
+                        a.sort_order - b.sort_order
+                )[0];
+
+        const imageHTML = image
+            ? `
+                <img
+                    src="${escapeHTML(image.image_url)}"
+                    alt="${escapeHTML(
+                        image.alt_text ||
+                        product.name
+                    )}"
+                    loading="lazy"
+                >
+            `
+            : "📦";
+
+        return `
+            <article
+                class="product-card"
+                data-category="${escapeHTML(category)}"
+                data-product-id="${escapeHTML(product.id)}"
+            >
+
+                <div class="product-card-image">
+
+                    ${imageHTML}
+
+                    <span class="product-badge">
+                        Nouveau
+                    </span>
+
+                </div>
+
+                <div class="product-card-body">
+
+                    <small>
+                        ${escapeHTML(category)}
+                    </small>
+
+                    <h3>
+                        ${escapeHTML(product.name)}
+                    </h3>
+
+                    <div class="rating">
+                        ⭐⭐⭐⭐⭐
+                        <span>Produit Zando</span>
+                    </div>
+
+                    <div class="product-bottom">
+
+                        <div>
+
+                            <strong>
+                                ${price.toFixed(2)}
+                                ${escapeHTML(currency)}
+                            </strong>
+
+                            ${
+                                oldPrice
+                                    ? `
+                                    <del>
+                                        ${oldPrice.toFixed(2)}
+                                        ${escapeHTML(currency)}
+                                    </del>
+                                    `
+                                    : ""
+                            }
+
+                        </div>
+
+                        <button
+                            class="add-cart"
+                            data-product-id="${escapeHTML(product.id)}"
+                            data-product="${escapeHTML(product.name)}"
+                            data-price="${price}"
+                            data-currency="${escapeHTML(currency)}"
+                        >
+                            + 🛒
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </article>
+        `;
+
+    }).join("");
+
+    productsGrid.innerHTML = html;
+
+    /*
+     * Les boutons viennent d'être créés
+     * dynamiquement. On doit donc
+     * réattacher leurs événements.
+     */
+
+    setupCartButtons();
+
+}
 
 
 /* =====================================================
@@ -62,6 +303,10 @@ document.addEventListener("DOMContentLoaded", () => {
     setupModal();
 
     updateYear();
+
+    testSupabaseConnection();
+
+    loadSupabaseProducts();
 
 });
 
