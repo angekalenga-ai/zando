@@ -245,6 +245,93 @@ function renderSupabaseProducts(products) {
 
 }
 
+/* =====================================================
+   AUTHENTICATION — SUPABASE
+===================================================== */
+
+async function getCurrentUser() {
+
+    try {
+
+        const {
+            data: { user },
+            error
+        } = await supabaseClient.auth.getUser();
+
+        if (error) {
+
+            console.error(
+                "❌ Erreur récupération utilisateur :",
+                error
+            );
+
+            return null;
+        }
+
+        return user;
+
+    } catch (error) {
+
+        console.error(
+            "❌ Erreur Auth Supabase :",
+            error
+        );
+
+        return null;
+    }
+}
+
+
+/* =====================================================
+   AUTH STATE
+===================================================== */
+
+async function setupAuth() {
+
+    const user = await getCurrentUser();
+
+    if (user) {
+
+        console.log(
+            "✅ Utilisateur Zando connecté :",
+            user.id
+        );
+
+    } else {
+
+        console.log(
+            "ℹ️ Aucun utilisateur Zando connecté."
+        );
+
+    }
+
+    supabaseClient.auth.onAuthStateChange(
+        (event, session) => {
+
+            console.log(
+                "🔐 Auth event :",
+                event
+            );
+
+            if (session?.user) {
+
+                console.log(
+                    "✅ Session Zando active."
+                );
+
+            } else {
+
+                console.log(
+                    "ℹ️ Session Zando terminée."
+                );
+
+            }
+
+        }
+    );
+
+}
+
 
 /* =====================================================
    STATE
@@ -307,6 +394,8 @@ document.addEventListener("DOMContentLoaded", () => {
     testSupabaseConnection();
 
     loadSupabaseProducts();
+
+    setupAuth();
 
 });
 
@@ -780,22 +869,205 @@ function checkout() {
 
 
 /* =====================================================
-   ACCOUNT
+   ACCOUNT — SUPABASE AUTH
 ===================================================== */
 
-function setupAccount() {
+async function setupAccount() {
 
-    accountButton?.addEventListener("click", () => {
+    if (!accountButton) return;
 
-        showModal(`
-            <h2>Bienvenue sur Zando 👋</h2>
+    accountButton.addEventListener("click", async () => {
+
+        const user = await getCurrentUser();
+
+        if (user) {
+
+            const email =
+                user.email || "Utilisateur Zando";
+
+            showModal(`
+                <h2>Mon compte 👤</h2>
+
+                <p>
+                    Connecté avec :
+                </p>
+
+                <strong>
+                    ${escapeHTML(email)}
+                </strong>
+
+                <br><br>
+
+                <button
+                    class="btn btn-primary"
+                    style="width:100%"
+                    onclick="logoutZando()"
+                >
+                    Se déconnecter
+                </button>
+            `);
+
+            return;
+        }
+
+        showLoginForm();
+
+    });
+
+}
+
+
+/* =====================================================
+   LOGIN FORM
+===================================================== */
+
+function showLoginForm() {
+
+    showModal(`
+        <h2>Connexion à Zando 👋</h2>
+
+        <p>
+            Connectez-vous à votre compte Zando.
+        </p>
+
+        <form id="loginForm">
+
+            <label>
+                Adresse e-mail
+            </label>
+
+            <input
+                type="email"
+                id="loginEmail"
+                required
+                autocomplete="email"
+                placeholder="vous@exemple.com"
+                style="
+                    width:100%;
+                    padding:12px;
+                    margin:8px 0 15px;
+                    border:1px solid #d1d5db;
+                    border-radius:8px;
+                "
+            >
+
+            <label>
+                Mot de passe
+            </label>
+
+            <input
+                type="password"
+                id="loginPassword"
+                required
+                autocomplete="current-password"
+                placeholder="Votre mot de passe"
+                style="
+                    width:100%;
+                    padding:12px;
+                    margin:8px 0 15px;
+                    border:1px solid #d1d5db;
+                    border-radius:8px;
+                "
+            >
+
+            <button
+                type="submit"
+                class="btn btn-primary"
+                style="width:100%"
+            >
+                Se connecter
+            </button>
+
+        </form>
+
+        <p
+            id="loginMessage"
+            style="margin-top:15px;"
+        ></p>
+    `);
+
+    const form =
+        document.getElementById("loginForm");
+
+    form?.addEventListener(
+        "submit",
+        loginZando
+    );
+
+}
+
+
+/* =====================================================
+   LOGIN
+===================================================== */
+
+async function loginZando(event) {
+
+    event.preventDefault();
+
+    const email =
+        document
+            .getElementById("loginEmail")
+            ?.value
+            .trim();
+
+    const password =
+        document
+            .getElementById("loginPassword")
+            ?.value;
+
+    const message =
+        document.getElementById("loginMessage");
+
+    if (!email || !password) return;
+
+    if (message) {
+
+        message.textContent =
+            "Connexion en cours...";
+
+    }
+
+    const {
+        data,
+        error
+    } = await supabaseClient.auth.signInWithPassword({
+        email,
+        password
+    });
+
+    if (error) {
+
+        console.error(
+            "❌ Connexion :",
+            error
+        );
+
+        if (message) {
+
+            message.textContent =
+                "❌ E-mail ou mot de passe incorrect.";
+
+        }
+
+        return;
+    }
+
+    console.log(
+        "✅ Connexion réussie :",
+        data.user.id
+    );
+
+    closeModal();
+
+    showModal(`
+        <div class="modal-success">
+
+            <h2>Bienvenue sur Zando 🎉</h2>
 
             <p>
-                La connexion et la création de compte
-                seront bientôt disponibles.
+                Vous êtes maintenant connecté.
             </p>
-
-            <br>
 
             <button
                 class="btn btn-primary"
@@ -803,9 +1075,49 @@ function setupAccount() {
             >
                 Continuer
             </button>
-        `);
 
-    });
+        </div>
+    `);
+
+}
+
+
+/* =====================================================
+   LOGOUT
+===================================================== */
+
+async function logoutZando() {
+
+    const {
+        error
+    } = await supabaseClient.auth.signOut();
+
+    if (error) {
+
+        console.error(
+            "❌ Déconnexion :",
+            error
+        );
+
+        return;
+    }
+
+    closeModal();
+
+    showModal(`
+        <h2>À bientôt 👋</h2>
+
+        <p>
+            Vous êtes maintenant déconnecté.
+        </p>
+
+        <button
+            class="btn btn-primary"
+            onclick="closeModal()"
+        >
+            Fermer
+        </button>
+    `);
 
 }
 
@@ -938,3 +1250,5 @@ window.closeModal = closeModal;
 window.removeFromCart = removeFromCart;
 
 window.checkout = checkout;
+
+window.logoutZando = logoutZando;
