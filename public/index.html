@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="description" content="Zando Panafricain - La marketplace africaine pour découvrir, acheter et vendre.">
+
+    <title>Zando — Marketplace Panafricaine</title>
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+    <!-- ================= HEADER ================= -->
+    <header class="site-header">
+
+        <div class="topbar">
+            <div class="container topbar-content">
+                <p>🌍 La marketplace pensée pour l'Afrique</p>
+
+                <div class="top-links">
+                    <a href="#vendeur">Devenir vendeur</a>
+                    <a href="#aide">Aide</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-header">
+            <div class="container header-content">
+
+                <a href="index.html" class="logo">
+                    <span class="logo-icon">Z</span>
+                    <span class="logo-text">Zando</span>
+                </a>
+
+                <form class="search-box" id="searchForm">
+                    <input
+                        type="search"
+                        id="searchInput"
+                        placeholder="Rechercher un produit..."
+                        autocomplete="off"
+                    >
+                    <button type="submit" aria-label="Rechercher">
+                        🔍
+                    </button>
+                </form>
+
+                <div class="header-actions">
+
+                    <button class="icon-action" id="accountButton">
+                        <span>👤</span>
+                        <small>Compte</small>
+                    </button>
+
+                    <button class="icon-action cart-button" id="cartButton">
+                        <span>🛒</span>
+                        <small>Panier</small>
+                        <b id="cartCount">0</b>
+                    </button>
+
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="main-nav">
+            <div class="container nav-content">
+
+                <a href="#accueil" class="active">Accueil</a>
+                <a href="#categories">Catégories</a>
+                <a href="#produits">Produits</a>
+                <a href="#boutiques">Boutiques</a>
+                <a href="#vendeur">Vendre sur Zando</a>
+
+            </div>
+        </nav>
+
+    </header>
+
+
+    <main>
+
+        <!-- ================= HERO ================= -->
+        <section class="hero" id="accueil">
+
+            <div class="container hero-content">
+
+                <div class="hero-text">
+
+                    <span class="hero-badge">
+                        🌍 Marketplace panafricaine
+                    </span>
+
+                    <h1>
+                        Achetez, vendez et
+                        <span>grandissez avec Zando.</span>
+                    </h1>
+
+                    <p>
+                        Découvrez des produits, des boutiques et des vendeurs
+                        de toute l'Afrique sur une marketplace simple, moderne
+                        et accessible.
+                    </p>
+
+                    <div class="hero-buttons">
+
+                        <a href="#produits" class="btn btn-primary">
+                            Découvrir les produits
+                        </a>
+
+                        <a href="#vendeur" class="btn btn-secondary">
+                            Devenir vendeur
+                        </a>
+
+                    </div>
+
+                    <div class="hero-stats">
+
+                        <div>
+                            <strong>🌍</strong>
+                            <span>Afrique</span>
+                        </div>
+
+                        <div>
+                            <strong>🔒</strong>
+                            <span>Achat sécurisé</span>
+                        </div>
+
+                        <div>
+                            <strong>🚚</strong>
+                            <span>Livraison</span>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="hero-visual">
+
+                    <div class="hero-card">
+
+                        <div class="hero-card-top">
+                            <span>Produits tendance</span>
+                            <span>🔥</span>
+                        </div>
+
+                        <div class="product-preview">
+
+                            <div class="product-image">
+                                📱
+                            </div>
+
+                            <div class="product-info">
+                                <span>Tech & Électronique</span>
+                                <strong>Smartphone dernière génération</strong>
+
+                                <div class="price">
+                                    299 $
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <button class="preview-button">
+                            Voir le produit →
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= CATEGORIES ================= -->
+        <section class="section" id="categories">
+
+            <div class="container">
+
+                <div class="section-heading">
+
+                    <div>
+                        <span class="section-label">Explorer</span>
+                        <h2>Catégories populaires</h2>
+                    </div>
+
+                    <a href="#produits" class="view-all">
+                        Voir tout →
+                    </a>
+
+                </div>
+
+                <div class="categories-grid">
+
+                    <button class="category-card" data-category="Mode">
+                        <span class="category-icon">👕</span>
+                        <strong>Mode</strong>
+                        <small>Vêtements & accessoires</small>
+                    </button>
+
+                    <button class="category-card" data-category="Électronique">
+                        <span class="category-icon">📱</span>
+                        <strong>Électronique</strong>
+                        <small>Téléphones & appareils</small>
+                    </button>
+
+                    <button class="category-card" data-category="Maison">
+                        <span class="category-icon">🏠</span>
+                        <strong>Maison</strong>
+                        <small>Maison & décoration</small>
+                    </button>
+
+                    <button class="category-card" data-category="Beauté">
+                        <span class="category-icon">✨</span>
+                        <strong>Beauté</strong>
+                        <small>Soins & beauté</small>
+                    </button>
+
+                    <button class="category-card" data-category="Alimentation">
+                        <span class="category-icon">🥭</span>
+                        <strong>Alimentation</strong>
+                        <small>Produits africains</small>
+                    </button>
+
+                    <button class="category-card" data-category="Services">
+                        <span class="category-icon">🛠️</span>
+                        <strong>Services</strong>
+                        <small>Services professionnels</small>
+                    </button>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= PRODUITS ================= -->
+        <section class="section products-section" id="produits">
+
+            <div class="container">
+
+                <div class="section-heading">
+
+                    <div>
+                        <span class="section-label">Sélection Zando</span>
+                        <h2>Produits populaires</h2>
+                    </div>
+
+                    <button class="view-all" id="showAllProducts">
+                        Voir tout →
+                    </button>
+
+                </div>
+
+                <div class="products-grid" id="productsGrid">
+
+                    <!-- Produit 1 -->
+                    <article class="product-card" data-category="Électronique">
+
+                        <div class="product-card-image">
+                            📱
+                            <span class="product-badge">Nouveau</span>
+                        </div>
+
+                        <div class="product-card-body">
+
+                            <small>Électronique</small>
+
+                            <h3>Smartphone Pro</h3>
+
+                            <div class="rating">
+                                ⭐⭐⭐⭐⭐
+                                <span>(24)</span>
+                            </div>
+
+                            <div class="product-bottom">
+
+                                <strong>299 $</strong>
+
+                                <button
+                                    class="add-cart"
+                                    data-product="Smartphone Pro"
+                                    data-price="299"
+                                >
+                                    + 🛒
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    </article>
+
+
+                    <!-- Produit 2 -->
+                    <article class="product-card" data-category="Mode">
+
+                        <div class="product-card-image">
+                            👟
+                            <span class="product-badge">Populaire</span>
+                        </div>
+
+                        <div class="product-card-body">
+
+                            <small>Mode</small>
+
+                            <h3>Sneakers Urban</h3>
+
+                            <div class="rating">
+                                ⭐⭐⭐⭐⭐
+                                <span>(38)</span>
+                            </div>
+
+                            <div class="product-bottom">
+
+                                <strong>89 $</strong>
+
+                                <button
+                                    class="add-cart"
+                                    data-product="Sneakers Urban"
+                                    data-price="89"
+                                >
+                                    + 🛒
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    </article>
+
+
+                    <!-- Produit 3 -->
+                    <article class="product-card" data-category="Maison">
+
+                        <div class="product-card-image">
+                            🛋️
+                        </div>
+
+                        <div class="product-card-body">
+
+                            <small>Maison</small>
+
+                            <h3>Fauteuil moderne</h3>
+
+                            <div class="rating">
+                                ⭐⭐⭐⭐☆
+                                <span>(16)</span>
+                            </div>
+
+                            <div class="product-bottom">
+
+                                <strong>149 $</strong>
+
+                                <button
+                                    class="add-cart"
+                                    data-product="Fauteuil moderne"
+                                    data-price="149"
+                                >
+                                    + 🛒
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    </article>
+
+
+                    <!-- Produit 4 -->
+                    <article class="product-card" data-category="Beauté">
+
+                        <div class="product-card-image">
+                            🧴
+                            <span class="product-badge">Tendance</span>
+                        </div>
+
+                        <div class="product-card-body">
+
+                            <small>Beauté</small>
+
+                            <h3>Soins naturels</h3>
+
+                            <div class="rating">
+                                ⭐⭐⭐⭐⭐
+                                <span>(51)</span>
+                            </div>
+
+                            <div class="product-bottom">
+
+                                <strong>35 $</strong>
+
+                                <button
+                                    class="add-cart"
+                                    data-product="Soins naturels"
+                                    data-price="35"
+                                >
+                                    + 🛒
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    </article>
+
+                </div>
+
+                <p class="empty-message" id="emptyMessage">
+                    Aucun produit trouvé.
+                </p>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= VENDEUR ================= -->
+        <section class="seller-section" id="vendeur">
+
+            <div class="container seller-content">
+
+                <div>
+
+                    <span class="section-label">
+                        Pour les entrepreneurs
+                    </span>
+
+                    <h2>
+                        Votre boutique mérite
+                        d'être vue par toute l'Afrique.
+                    </h2>
+
+                    <p>
+                        Rejoignez Zando et présentez vos produits à des clients
+                        à la recherche de nouvelles marques, de produits locaux
+                        et de services.
+                    </p>
+
+                    <button class="btn btn-light" id="sellerButton">
+                        Commencer à vendre →
+                    </button>
+
+                </div>
+
+                <div class="seller-icon">
+                    🏪
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= AVANTAGES ================= -->
+        <section class="section">
+
+            <div class="container">
+
+                <div class="section-heading centered">
+
+                    <div>
+                        <span class="section-label">Pourquoi Zando ?</span>
+                        <h2>Une expérience pensée pour vous</h2>
+                    </div>
+
+                </div>
+
+                <div class="advantages-grid">
+
+                    <div class="advantage">
+                        <span>🔐</span>
+                        <h3>Achat sécurisé</h3>
+                        <p>
+                            Une expérience conçue pour protéger acheteurs
+                            et vendeurs.
+                        </p>
+                    </div>
+
+                    <div class="advantage">
+                        <span>🌍</span>
+                        <h3>Marché africain</h3>
+                        <p>
+                            Découvrez des produits provenant de différents
+                            marchés africains.
+                        </p>
+                    </div>
+
+                    <div class="advantage">
+                        <span>🚚</span>
+                        <h3>Livraison</h3>
+                        <p>
+                            Des solutions de livraison adaptées aux marchés
+                            locaux.
+                        </p>
+                    </div>
+
+                    <div class="advantage">
+                        <span>💬</span>
+                        <h3>Support</h3>
+                        <p>
+                            Une assistance pour accompagner votre expérience
+                            sur Zando.
+                        </p>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- ================= FOOTER ================= -->
+    <footer class="site-footer" id="aide">
+
+        <div class="container footer-grid">
+
+            <div class="footer-brand">
+
+                <a href="index.html" class="logo">
+                    <span class="logo-icon">Z</span>
+                    <span class="logo-text">Zando</span>
+                </a>
+
+                <p>
+                    La marketplace panafricaine pour acheter, vendre
+                    et développer son activité.
+                </p>
+
+            </div>
+
+            <div>
+
+                <h3>Zando</h3>
+
+                <a href="#produits">Produits</a>
+                <a href="#categories">Catégories</a>
+                <a href="#boutiques">Boutiques</a>
+                <a href="#vendeur">Devenir vendeur</a>
+
+            </div>
+
+            <div>
+
+                <h3>Aide</h3>
+
+                <a href="#aide">Centre d'aide</a>
+                <a href="#aide">Livraison</a>
+                <a href="#aide">Paiements</a>
+                <a href="#aide">Contact</a>
+
+            </div>
+
+            <div>
+
+                <h3>Suivez-nous</h3>
+
+                <div class="social-links">
+                    <a href="#" aria-label="Facebook">f</a>
+                    <a href="#" aria-label="Instagram">◎</a>
+                    <a href="#" aria-label="TikTok">♪</a>
+                    <a href="#" aria-label="WhatsApp">◉</a>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="footer-bottom">
+
+            <div class="container">
+
+                <p>
+                    © <span id="currentYear"></span> Zando.
+                    Tous droits réservés.
+                </p>
+
+            </div>
+
+        </div>
+
+    </footer>
+
+
+    <!-- ================= MODAL ================= -->
+    <div class="modal-overlay" id="modalOverlay">
+
+        <div class="modal">
+
+            <button class="modal-close" id="modalClose">
+                ×
+            </button>
+
+            <div id="modalContent"></div>
+
+        </div>
+
+    </div>
+
+
+    <script src="js/app.js"></script>
+
+</body>
+</html>
