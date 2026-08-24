@@ -246,6 +246,232 @@ function renderSupabaseProducts(products) {
 }
 
 /* =====================================================
+   SUPABASE CART
+===================================================== */
+
+async function addProductToSupabaseCart(
+    productId,
+    productName
+) {
+
+    const user = await getCurrentUser();
+
+    if (!user) {
+
+        showModal(`
+            <h2>Connexion nécessaire 👤</h2>
+
+            <p>
+                Connectez-vous à votre compte
+                pour ajouter des produits à votre panier.
+            </p>
+
+            <br>
+
+            <button
+                class="btn btn-primary"
+                onclick="closeModal()"
+            >
+                Fermer
+            </button>
+        `);
+
+        return;
+    }
+
+    try {
+
+        /*
+         * Récupérer le panier de l'utilisateur.
+         */
+
+        const {
+            data: cart,
+            error: cartError
+        } = await supabaseClient
+            .from("carts")
+            .select("id")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+        if (cartError) {
+            throw cartError;
+        }
+
+        if (!cart) {
+
+            console.error(
+                "❌ Panier utilisateur introuvable."
+            );
+
+            showModal(`
+                <h2>Panier indisponible</h2>
+
+                <p>
+                    Impossible de récupérer votre panier.
+                    Veuillez réessayer.
+                </p>
+
+                <br>
+
+                <button
+                    class="btn btn-primary"
+                    onclick="closeModal()"
+                >
+                    Fermer
+                </button>
+            `);
+
+            return;
+        }
+
+        /*
+         * Vérifier si le produit existe déjà
+         * dans le panier.
+         */
+
+        const {
+            data: existingItem,
+            error: itemError
+        } = await supabaseClient
+            .from("cart_items")
+            .select("id, quantity")
+            .eq("cart_id", cart.id)
+            .eq("product_id", productId)
+            .maybeSingle();
+
+        if (itemError) {
+            throw itemError;
+        }
+
+        if (existingItem) {
+
+            const newQuantity =
+                existingItem.quantity + 1;
+
+            const {
+                error: updateError
+            } = await supabaseClient
+                .from("cart_items")
+                .update({
+                    quantity: newQuantity
+                })
+                .eq("id", existingItem.id);
+
+            if (updateError) {
+                throw updateError;
+            }
+
+        } else {
+
+            const {
+                error: insertError
+            } = await supabaseClient
+                .from("cart_items")
+                .insert({
+                    cart_id: cart.id,
+                    product_id: productId,
+                    quantity: 1
+                });
+
+            if (insertError) {
+                throw insertError;
+            }
+
+        }
+
+        console.log(
+            "✅ Produit ajouté au panier Supabase :",
+            productId
+        );
+
+        /*
+         * Conserver temporairement le panier local
+         * pour l'affichage du compteur existant.
+         */
+
+        const localProduct = {
+            id: productId,
+            name: productName,
+            price: 0
+        };
+
+        const existingLocal =
+            state.cart.find(
+                item => item.id === productId
+            );
+
+        if (existingLocal) {
+
+            existingLocal.quantity += 1;
+
+        } else {
+
+            state.cart.push({
+                ...localProduct,
+                quantity: 1
+            });
+
+        }
+
+        saveCart();
+
+        updateCartCounter();
+
+        showModal(`
+            <div class="modal-success">
+
+                <h2>Produit ajouté 🛒</h2>
+
+                <p>
+                    <strong>
+                        ${escapeHTML(productName)}
+                    </strong>
+                    a été ajouté à votre panier.
+                </p>
+
+                <br>
+
+                <button
+                    class="btn btn-primary"
+                    onclick="closeModal()"
+                >
+                    Continuer mes achats
+                </button>
+
+            </div>
+        `);
+
+    } catch (error) {
+
+        console.error(
+            "❌ Erreur panier Supabase :",
+            error
+        );
+
+        showModal(`
+            <h2>Erreur</h2>
+
+            <p>
+                Impossible d'ajouter ce produit
+                au panier.
+            </p>
+
+            <br>
+
+            <button
+                class="btn btn-primary"
+                onclick="closeModal()"
+            >
+                Fermer
+            </button>
+        `);
+
+    }
+
+}
+
+/* =====================================================
    AUTHENTICATION — SUPABASE
 ===================================================== */
 
@@ -573,15 +799,34 @@ function setupCartButtons() {
 
     buttons.forEach((button) => {
 
-        button.addEventListener("click", () => {
+        // Évite d'attacher deux fois le même événement
+        if (button.dataset.cartReady === "true") {
+            return;
+        }
 
-            const product = {
-                name: button.dataset.product,
+        button.dataset.cartReady = "true";
 
-                price: Number(button.dataset.price)
-            };
+        button.addEventListener("click", async () => {
 
-            addToCart(product);
+            const productId =
+                button.dataset.productId;
+
+            const productName =
+                button.dataset.product;
+
+            if (!productId) {
+
+                console.error(
+                    "❌ ID produit Supabase manquant."
+                );
+
+                return;
+            }
+
+            await addProductToSupabaseCart(
+                productId,
+                productName
+            );
 
         });
 
@@ -1006,78 +1251,118 @@ async function loginZando(event) {
     event.preventDefault();
 
     const email =
-        document
-            .getElementById("loginEmail")
-            ?.value
-            .trim();
+        document.getElementById("loginEmail")?.value.trim();
 
     const password =
-        document
-            .getElementById("loginPassword")
-            ?.value;
+        document.getElementById("loginPassword")?.value;
 
     const message =
         document.getElementById("loginMessage");
 
-    if (!email || !password) return;
-
-    if (message) {
-
-        message.textContent =
-            "Connexion en cours...";
-
+    if (!email || !password) {
+        if (message) {
+            message.textContent =
+                "Veuillez remplir tous les champs.";
+        }
+        return;
     }
 
-    const {
-        data,
-        error
-    } = await supabaseClient.auth.signInWithPassword({
-        email,
-        password
-    });
+    if (message) {
+        message.textContent =
+            "Connexion en cours...";
+    }
 
-    if (error) {
+    console.log("🔐 Tentative de connexion :", email);
+
+    try {
+
+        const loginPromise =
+            supabaseClient.auth.signInWithPassword({
+                email: email,
+                password: password
+            });
+
+        const timeoutPromise =
+            new Promise((_, reject) => {
+                setTimeout(() => {
+                    reject(
+                        new Error(
+                            "La connexion Supabase prend trop de temps. Vérifiez votre connexion Internet."
+                        )
+                    );
+                }, 15000);
+            });
+
+        const {
+            data,
+            error
+        } = await Promise.race([
+            loginPromise,
+            timeoutPromise
+        ]);
+
+        if (error) {
+
+            console.error(
+                "❌ Erreur Supabase Auth :",
+                error
+            );
+
+            if (message) {
+                message.textContent =
+                    "❌ " + (
+                        error.message ||
+                        "Échec de la connexion."
+                    );
+            }
+
+            return;
+        }
+
+        console.log(
+            "✅ Connexion réussie :",
+            data.user?.id
+        );
+
+        closeModal();
+
+        showModal(`
+            <div class="modal-success">
+
+                <h2>Bienvenue sur Zando 🎉</h2>
+
+                <p>
+                    Vous êtes maintenant connecté.
+                </p>
+
+                <button
+                    class="btn btn-primary"
+                    onclick="closeModal()"
+                >
+                    Continuer
+                </button>
+
+            </div>
+        `);
+
+    } catch (error) {
 
         console.error(
-            "❌ Connexion :",
+            "❌ Exception connexion :",
             error
         );
 
         if (message) {
 
             message.textContent =
-                "❌ E-mail ou mot de passe incorrect.";
+                "❌ " + (
+                    error.message ||
+                    "Impossible de contacter Supabase."
+                );
 
         }
 
-        return;
     }
-
-    console.log(
-        "✅ Connexion réussie :",
-        data.user.id
-    );
-
-    closeModal();
-
-    showModal(`
-        <div class="modal-success">
-
-            <h2>Bienvenue sur Zando 🎉</h2>
-
-            <p>
-                Vous êtes maintenant connecté.
-            </p>
-
-            <button
-                class="btn btn-primary"
-                onclick="closeModal()"
-            >
-                Continuer
-            </button>
-
-        </div>
-    `);
 
 }
 
