@@ -390,11 +390,25 @@ async function addProductToSupabaseCart(
          * pour l'affichage du compteur existant.
          */
 
-        const localProduct = {
-            id: productId,
-            name: productName,
-            price: 0
-        };
+        const {
+    data: productData,
+    error: productDataError
+} = await supabaseClient
+    .from("products")
+    .select("id, name, price, currency")
+    .eq("id", productId)
+    .single();
+
+if (productDataError) {
+    throw productDataError;
+}
+
+const localProduct = {
+    id: productData.id,
+    name: productData.name,
+    price: Number(productData.price || 0),
+    currency: productData.currency || "USD"
+};
 
         const existingLocal =
             state.cart.find(
@@ -414,7 +428,6 @@ async function addProductToSupabaseCart(
 
         }
 
-        saveCart();
 
         updateCartCounter();
 
@@ -523,16 +536,24 @@ async function setupAuth() {
             user.id
         );
 
+        await loadCartFromSupabase();
+
+        updateCartCounter();
+
     } else {
 
         console.log(
             "ℹ️ Aucun utilisateur Zando connecté."
         );
 
+        state.cart = [];
+
+        updateCartCounter();
+
     }
 
     supabaseClient.auth.onAuthStateChange(
-        (event, session) => {
+        async (event, session) => {
 
             console.log(
                 "🔐 Auth event :",
@@ -545,11 +566,19 @@ async function setupAuth() {
                     "✅ Session Zando active."
                 );
 
+                await loadCartFromSupabase();
+
+                updateCartCounter();
+
             } else {
 
                 console.log(
                     "ℹ️ Session Zando terminée."
                 );
+
+                state.cart = [];
+
+                updateCartCounter();
 
             }
 
@@ -599,9 +628,7 @@ const currentYear = document.getElementById("currentYear");
 
 document.addEventListener("DOMContentLoaded", () => {
 
-    loadCart();
-
-    updateCartCounter();
+    loadCartFromSupabase();
 
     setupSearch();
 
@@ -835,55 +862,6 @@ function setupCartButtons() {
 }
 
 
-function addToCart(product) {
-
-    const existing =
-        state.cart.find(
-            item => item.name === product.name
-        );
-
-    if (existing) {
-
-        existing.quantity += 1;
-
-    } else {
-
-        state.cart.push({
-            ...product,
-            quantity: 1
-        });
-
-    }
-
-    saveCart();
-
-    updateCartCounter();
-
-    showModal(
-        `
-        <div class="modal-success">
-            <h2>Produit ajouté 🛒</h2>
-
-            <p>
-                <strong>${escapeHTML(product.name)}</strong>
-                a été ajouté à votre panier.
-            </p>
-
-            <br>
-
-            <button
-                class="btn btn-primary"
-                onclick="closeModal()"
-            >
-                Continuer mes achats
-            </button>
-        </div>
-        `
-    );
-
-}
-
-
 function updateCartCounter() {
 
     if (!cartCount) return;
@@ -904,49 +882,102 @@ function updateCartCounter() {
    LOCAL STORAGE
 ===================================================== */
 
-function saveCart() {
+async function loadCartFromSupabase() {
 
     try {
 
-        localStorage.setItem(
-            "zando_cart",
-            JSON.stringify(state.cart)
-        );
+        const user = await getCurrentUser();
 
-    } catch (error) {
+        if (!user) {
 
-        console.error(
-            "Impossible de sauvegarder le panier.",
-            error
-        );
+            state.cart = [];
 
-    }
+            updateCartCounter();
 
-}
+            console.log(
+                "ℹ️ Aucun utilisateur connecté : panier Supabase non chargé."
+            );
 
-
-function loadCart() {
-
-    try {
-
-        const saved =
-            localStorage.getItem("zando_cart");
-
-        if (saved) {
-
-            state.cart =
-                JSON.parse(saved);
+            return;
 
         }
 
+        const {
+            data: cart,
+            error: cartError
+        } = await supabaseClient
+            .from("carts")
+            .select("id")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+        if (cartError) {
+            throw cartError;
+        }
+
+        if (!cart) {
+
+            state.cart = [];
+
+            updateCartCounter();
+
+            console.log(
+                "ℹ️ Aucun panier Supabase trouvé pour cet utilisateur."
+            );
+
+            return;
+
+        }
+
+        const {
+            data: items,
+            error: itemsError
+        } = await supabaseClient
+            .from("cart_items")
+            .select(`
+                id,
+                product_id,
+                quantity,
+                products (
+                    id,
+                    name,
+                    price,
+                    currency
+                )
+            `)
+            .eq("cart_id", cart.id);
+
+        if (itemsError) {
+            throw itemsError;
+        }
+
+        state.cart = (items || [])
+            .filter(item => item.products)
+            .map(item => ({
+                id: item.products.id,
+                name: item.products.name,
+                price: Number(item.products.price || 0),
+                currency: item.products.currency || "USD",
+                quantity: Number(item.quantity || 0)
+            }));
+
+        updateCartCounter();
+
+        console.log(
+            "✅ Panier chargé depuis Supabase :",
+            state.cart
+        );
+
     } catch (error) {
 
         console.error(
-            "Impossible de charger le panier.",
+            "❌ Impossible de charger le panier Supabase :",
             error
         );
 
         state.cart = [];
+
+        updateCartCounter();
 
     }
 
@@ -1076,42 +1107,253 @@ function showCart() {
 }
 
 
-function removeFromCart(index) {
+async function removeFromCart(index) {
 
-    state.cart.splice(index, 1);
+    try {
 
-    saveCart();
+        const item = state.cart[index];
 
-    updateCartCounter();
+        if (!item) {
+            return;
+        }
 
-    showCart();
+        const user = await getCurrentUser();
+
+        if (!user) {
+
+            console.error(
+                "❌ Utilisateur non connecté."
+            );
+
+            return;
+        }
+
+        const {
+            data: cart,
+            error: cartError
+        } = await supabaseClient
+            .from("carts")
+            .select("id")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+        if (cartError) {
+            throw cartError;
+        }
+
+        if (!cart) {
+
+            console.error(
+                "❌ Panier Supabase introuvable."
+            );
+
+            return;
+        }
+
+        const {
+            error: deleteError
+        } = await supabaseClient
+            .from("cart_items")
+            .delete()
+            .eq("cart_id", cart.id)
+            .eq("product_id", item.id);
+
+        if (deleteError) {
+            throw deleteError;
+        }
+
+        state.cart.splice(index, 1);
+
+        updateCartCounter();
+
+        console.log(
+            "✅ Produit supprimé du panier Supabase :",
+            item.id
+        );
+
+        showCart();
+
+    } catch (error) {
+
+        console.error(
+            "❌ Erreur suppression panier Supabase :",
+            error
+        );
+
+    }
 
 }
 
 
-function checkout() {
+async function checkout() {
 
-    showModal(`
-        <h2>Commande</h2>
+    if (!state.cart.length) {
 
-        <p>
-            Le système de commande et de paiement
-            sera connecté à Supabase dans la prochaine
-            étape du développement de Zando.
-        </p>
+        showModal(`
+            <h2>Panier vide 🛒</h2>
+            <p>Ajoutez au moins un produit avant de passer la commande.</p>
+            <br>
+            <button
+                class="btn btn-primary"
+                onclick="closeModal()"
+            >
+                Fermer
+            </button>
+        `);
 
-        <br>
+        return;
+    }
 
-        <button
-            class="btn btn-primary"
-            onclick="closeModal()"
-        >
-            Fermer
-        </button>
-    `);
+    const user = await getCurrentUser();
+
+    if (!user) {
+
+        showModal(`
+            <h2>Connexion nécessaire 👤</h2>
+            <p>Connectez-vous pour passer votre commande.</p>
+            <br>
+            <button
+                class="btn btn-primary"
+                onclick="closeModal()"
+            >
+                Fermer
+            </button>
+        `);
+
+        return;
+    }
+
+    try {
+
+        const subtotal = state.cart.reduce(
+            (sum, item) =>
+                sum + Number(item.price || 0) * Number(item.quantity || 0),
+            0
+        );
+
+        const currency =
+            state.cart[0]?.currency || "USD";
+
+        const shippingFee = 0;
+
+        const total =
+            subtotal + shippingFee;
+
+        const {
+            data: order,
+            error: orderError
+        } = await supabaseClient
+            .from("orders")
+            .insert({
+                user_id: user.id,
+                status: "pending",
+                payment_status: "pending",
+                currency: currency,
+                subtotal: subtotal,
+                shipping_fee: shippingFee,
+                total: total
+            })
+            .select("id")
+            .single();
+
+        if (orderError) {
+            throw orderError;
+        }
+
+        const orderItems = state.cart.map(item => ({
+            order_id: order.id,
+            product_id: item.id,
+            product_name: item.name,
+            unit_price: Number(item.price || 0),
+            quantity: Number(item.quantity || 0),
+            line_total:
+                Number(item.price || 0) *
+                Number(item.quantity || 0)
+        }));
+
+        const {
+            error: itemsError
+        } = await supabaseClient
+            .from("order_items")
+            .insert(orderItems);
+
+        if (itemsError) {
+            throw itemsError;
+        }
+
+        console.log(
+            "✅ Commande Zando créée :",
+            order.id
+        );
+
+        state.cart = [];
+
+        updateCartCounter();
+
+        showModal(`
+            <div class="modal-success">
+
+                <h2>Commande enregistrée 🎉</h2>
+
+                <p>
+                    Votre commande a été enregistrée
+                    avec succès.
+                </p>
+
+                <p>
+                    <strong>
+                        Total : ${total.toFixed(2)} ${escapeHTML(currency)}
+                    </strong>
+                </p>
+
+                <p>
+                    Référence :
+                    <strong>${escapeHTML(order.id)}</strong>
+                </p>
+
+                <br>
+
+                <button
+                    class="btn btn-primary"
+                    onclick="closeModal()"
+                >
+                    Continuer
+                </button>
+
+            </div>
+        `);
+
+    } catch (error) {
+
+        console.error(
+            "❌ Erreur création commande Zando :",
+            error
+        );
+
+        showModal(`
+            <h2>Erreur de commande ❌</h2>
+
+            <p>
+                Impossible d'enregistrer votre commande.
+            </p>
+
+            <p>
+                Veuillez réessayer.
+            </p>
+
+            <br>
+
+            <button
+                class="btn btn-primary"
+                onclick="closeModal()"
+            >
+                Fermer
+            </button>
+        `);
+
+    }
 
 }
-
 
 /* =====================================================
    ACCOUNT — SUPABASE AUTH
