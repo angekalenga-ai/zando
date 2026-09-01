@@ -494,47 +494,39 @@
 
 
 <!-- =========================
-     STATISTIQUES
+     TABLEAU DE BORD
 ========================= -->
 
 <section class="stats">
 
     <div class="stat">
-
-        <span class="stat-label">
-            Commandes
-        </span>
-
-        <strong id="statOrders">
-            —
-        </strong>
-
+        <span class="stat-label">📦 Commandes</span>
+        <strong id="statOrders">—</strong>
     </div>
 
-
     <div class="stat">
-
-        <span class="stat-label">
-            En attente
-        </span>
-
-        <strong id="statPending">
-            —
-        </strong>
-
+        <span class="stat-label">⏳ En attente</span>
+        <strong id="statPending">—</strong>
     </div>
 
+    <div class="stat">
+        <span class="stat-label">👥 Clients</span>
+        <strong id="statClients">—</strong>
+    </div>
 
     <div class="stat">
+        <span class="stat-label">🏪 Boutiques</span>
+        <strong id="statStores">—</strong>
+    </div>
 
-        <span class="stat-label">
-            Total des commandes
-        </span>
+    <div class="stat">
+        <span class="stat-label">📦 Produits</span>
+        <strong id="statProducts">—</strong>
+    </div>
 
-        <strong id="statRevenue">
-            —
-        </strong>
-
+    <div class="stat">
+        <span class="stat-label">💰 Chiffre d'affaires</span>
+        <strong id="statRevenue">—</strong>
     </div>
 
 </section>
@@ -871,6 +863,100 @@ async function requireAdmin() {
 
 
 /* =====================================================
+   STATISTIQUES GLOBALES
+===================================================== */
+
+async function loadDashboardStats() {
+
+    try {
+
+        await requireAdmin();
+
+        const [
+            clientsResult,
+            storesResult,
+            productsResult
+        ] = await Promise.all([
+
+            supabaseClient
+                .from("profiles")
+                .select("id", {
+                    count: "exact",
+                    head: true
+                })
+                .eq("role", "customer"),
+
+            supabaseClient
+                .from("stores")
+                .select("id", {
+                    count: "exact",
+                    head: true
+                }),
+
+            supabaseClient
+                .from("products")
+                .select("id", {
+                    count: "exact",
+                    head: true
+                })
+
+        ]);
+
+        if (clientsResult.error) {
+            throw clientsResult.error;
+        }
+
+        if (storesResult.error) {
+            throw storesResult.error;
+        }
+
+        if (productsResult.error) {
+            throw productsResult.error;
+        }
+
+        const clients =
+            clientsResult.count ?? 0;
+
+        const stores =
+            storesResult.count ?? 0;
+
+        const products =
+            productsResult.count ?? 0;
+
+        const clientsElement =
+            document.getElementById("statClients");
+
+        const storesElement =
+            document.getElementById("statStores");
+
+        const productsElement =
+            document.getElementById("statProducts");
+
+        if (clientsElement) {
+            clientsElement.textContent = clients;
+        }
+
+        if (storesElement) {
+            storesElement.textContent = stores;
+        }
+
+        if (productsElement) {
+            productsElement.textContent = products;
+        }
+
+    } catch (error) {
+
+        console.error(
+            "❌ Erreur statistiques dashboard :",
+            error
+        );
+
+    }
+
+}
+
+
+/* =====================================================
    CHARGEMENT DES COMMANDES
 ===================================================== */
 
@@ -1005,6 +1091,8 @@ async function loadOrders() {
 
 
         renderOrders();
+
+        await loadDashboardStats();
 
 
     } catch (error) {

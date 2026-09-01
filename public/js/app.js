@@ -1367,39 +1367,284 @@ async function setupAccount() {
 
         const user = await getCurrentUser();
 
-        if (user) {
+        if (!user) {
+            showLoginForm();
+            return;
+        }
 
-            const email =
-                user.email || "Utilisateur Zando";
+        try {
+
+            const {
+                data: profile,
+                error
+            } = await supabaseClient
+                .from("profiles")
+                .select("full_name, phone, role")
+                .eq("id", user.id)
+                .maybeSingle();
+
+            if (error) {
+                throw error;
+            }
+
+            const name =
+                profile?.full_name || "";
+
+            const phone =
+                profile?.phone || "";
+
+            const role =
+                profile?.role || "customer";
+
+            showAccountView(
+                user.email || "Utilisateur Zando",
+                name,
+                phone,
+                role
+            );
+
+        } catch (error) {
+
+            console.error(
+                "❌ Erreur chargement profil :",
+                error
+            );
 
             showModal(`
                 <h2>Mon compte 👤</h2>
 
                 <p>
-                    Connecté avec :
+                    Impossible de charger vos informations.
                 </p>
 
-                <strong>
-                    ${escapeHTML(email)}
-                </strong>
-
-                <br><br>
+                <p style="color:#dc2626;">
+                    ${escapeHTML(error.message || "Erreur inconnue.")}
+                </p>
 
                 <button
                     class="btn btn-primary"
-                    style="width:100%"
-                    onclick="logoutZando()"
+                    style="width:100%;"
+                    onclick="closeModal()"
                 >
-                    Se déconnecter
+                    Fermer
                 </button>
             `);
 
-            return;
         }
 
-        showLoginForm();
-
     });
+
+}
+
+
+function showAccountView(email, name, phone, role) {
+
+    const roleLabel =
+        role === "seller"
+            ? "Vendeur"
+            : role === "admin"
+                ? "Administrateur"
+                : "Client";
+
+    showModal(`
+        <h2>Mon compte 👤</h2>
+
+        <p style="color:#64748b;">
+            Gérez vos informations personnelles.
+        </p>
+
+        <div style="
+            margin-top:18px;
+            padding:16px;
+            background:#f8fafc;
+            border-radius:12px;
+        ">
+
+            <label style="
+                display:block;
+                font-weight:700;
+                margin-bottom:6px;
+            ">
+                Nom complet
+            </label>
+
+            <input
+                type="text"
+                id="accountName"
+                value="${escapeHTML(name)}"
+                placeholder="Votre nom complet"
+                style="
+                    width:100%;
+                    box-sizing:border-box;
+                    padding:12px;
+                    border:1px solid #d1d5db;
+                    border-radius:9px;
+                    margin-bottom:15px;
+                "
+            >
+
+            <label style="
+                display:block;
+                font-weight:700;
+                margin-bottom:6px;
+            ">
+                Numéro de téléphone
+            </label>
+
+            <input
+                type="tel"
+                id="accountPhone"
+                value="${escapeHTML(phone)}"
+                placeholder="+243 8XX XXX XXX"
+                style="
+                    width:100%;
+                    box-sizing:border-box;
+                    padding:12px;
+                    border:1px solid #d1d5db;
+                    border-radius:9px;
+                    margin-bottom:15px;
+                "
+            >
+
+            <label style="
+                display:block;
+                font-weight:700;
+                margin-bottom:6px;
+            ">
+                Adresse e-mail
+            </label>
+
+            <input
+                type="email"
+                value="${escapeHTML(email)}"
+                disabled
+                style="
+                    width:100%;
+                    box-sizing:border-box;
+                    padding:12px;
+                    border:1px solid #e5e7eb;
+                    border-radius:9px;
+                    background:#f1f5f9;
+                    color:#64748b;
+                "
+            >
+
+            <p style="
+                margin:12px 0 0;
+                color:#64748b;
+                font-size:13px;
+            ">
+                Type de compte :
+                <strong>${escapeHTML(roleLabel)}</strong>
+            </p>
+
+        </div>
+
+        <p
+            id="accountMessage"
+            style="margin-top:12px;"
+        ></p>
+
+        <button
+            class="btn btn-primary"
+            style="width:100%; margin-top:8px;"
+            onclick="saveAccountProfile()"
+        >
+            💾 Enregistrer les modifications
+        </button>
+
+        <button
+            class="btn btn-primary"
+            style="width:100%; margin-top:10px;"
+            onclick="window.location.href='orders.html'"
+        >
+            📦 Mes commandes
+        </button>
+
+        <button
+            class="btn btn-primary"
+            style="width:100%; margin-top:10px;"
+            onclick="logoutZando()"
+        >
+            🚪 Se déconnecter
+        </button>
+    `);
+
+}
+
+
+async function saveAccountProfile() {
+
+    const name =
+        document.getElementById("accountName")?.value.trim();
+
+    const phone =
+        document.getElementById("accountPhone")?.value.trim();
+
+    const message =
+        document.getElementById("accountMessage");
+
+    if (!name || !phone) {
+
+        if (message) {
+            message.textContent =
+                "❌ Le nom et le numéro de téléphone sont obligatoires.";
+        }
+
+        return;
+    }
+
+    if (message) {
+        message.textContent =
+            "Enregistrement en cours...";
+    }
+
+    try {
+
+        const user = await getCurrentUser();
+
+        if (!user) {
+            throw new Error(
+                "Vous devez être connecté."
+            );
+        }
+
+        const {
+            error
+        } = await supabaseClient
+            .from("profiles")
+            .update({
+                full_name: name,
+                phone: phone,
+                updated_at: new Date().toISOString()
+            })
+            .eq("id", user.id);
+
+        if (error) {
+            throw error;
+        }
+
+        if (message) {
+            message.textContent =
+                "✅ Informations mises à jour avec succès.";
+        }
+
+    } catch (error) {
+
+        console.error(
+            "❌ Erreur mise à jour profil :",
+            error
+        );
+
+        if (message) {
+            message.textContent =
+                "❌ " + (
+                    error.message ||
+                    "Impossible de mettre à jour vos informations."
+                );
+        }
+
+    }
 
 }
 
@@ -1407,6 +1652,278 @@ async function setupAccount() {
 /* =====================================================
    LOGIN FORM
 ===================================================== */
+
+
+function showRegisterForm() {
+
+    showModal(`
+        <h2>Créer votre compte Zando 🛍️</h2>
+
+        <p>
+            Rejoignez Zando pour commander plus facilement.
+        </p>
+
+        <form id="registerForm">
+
+            <label>Nom complet</label>
+
+            <input
+                type="text"
+                id="registerName"
+                required
+                autocomplete="name"
+                placeholder="Votre nom complet"
+                style="
+                    width:100%;
+                    padding:12px;
+                    margin:8px 0 15px;
+                    border:1px solid #d1d5db;
+                    border-radius:8px;
+                "
+            >
+
+            <label>Numéro de téléphone</label>
+
+            <input
+                type="tel"
+                id="registerPhone"
+                required
+                autocomplete="tel"
+                placeholder="+243 8XX XXX XXX"
+                style="
+                    width:100%;
+                    padding:12px;
+                    margin:8px 0 15px;
+                    border:1px solid #d1d5db;
+                    border-radius:8px;
+                "
+            >
+
+            <label>Adresse e-mail</label>
+
+            <input
+                type="email"
+                id="registerEmail"
+                required
+                autocomplete="email"
+                placeholder="vous@exemple.com"
+                style="
+                    width:100%;
+                    padding:12px;
+                    margin:8px 0 15px;
+                    border:1px solid #d1d5db;
+                    border-radius:8px;
+                "
+            >
+
+            <label>Mot de passe</label>
+
+            <input
+                type="password"
+                id="registerPassword"
+                required
+                minlength="6"
+                autocomplete="new-password"
+                placeholder="Minimum 6 caractères"
+                style="
+                    width:100%;
+                    padding:12px;
+                    margin:8px 0 15px;
+                    border:1px solid #d1d5db;
+                    border-radius:8px;
+                "
+            >
+
+            <label>Confirmer le mot de passe</label>
+
+            <input
+                type="password"
+                id="registerPasswordConfirm"
+                required
+                minlength="6"
+                autocomplete="new-password"
+                placeholder="Confirmez votre mot de passe"
+                style="
+                    width:100%;
+                    padding:12px;
+                    margin:8px 0 15px;
+                    border:1px solid #d1d5db;
+                    border-radius:8px;
+                "
+            >
+
+            <button
+                type="submit"
+                class="btn btn-primary"
+                style="width:100%"
+            >
+                Créer mon compte
+            </button>
+
+        </form>
+
+        <p
+            id="registerMessage"
+            style="margin-top:15px;"
+        ></p>
+
+        <button
+            type="button"
+            onclick="showLoginForm()"
+            style="
+                margin-top:10px;
+                border:0;
+                background:none;
+                color:#2563eb;
+                font-weight:800;
+                cursor:pointer;
+                font-size:14px;
+            "
+        >
+            J'ai déjà un compte
+        </button>
+    `);
+
+    const form =
+        document.getElementById("registerForm");
+
+    form?.addEventListener(
+        "submit",
+        registerZando
+    );
+
+}
+
+
+async function registerZando(event) {
+
+    event.preventDefault();
+
+    const name =
+        document.getElementById("registerName")?.value.trim();
+
+    const phone =
+        document.getElementById("registerPhone")?.value.trim();
+
+    const email =
+        document.getElementById("registerEmail")?.value.trim();
+
+    const password =
+        document.getElementById("registerPassword")?.value;
+
+    const passwordConfirm =
+        document.getElementById("registerPasswordConfirm")?.value;
+
+    const message =
+        document.getElementById("registerMessage");
+
+    if (!name || !phone || !email || !password || !passwordConfirm) {
+        if (message) {
+            message.textContent =
+                "Veuillez remplir tous les champs.";
+        }
+        return;
+    }
+
+    if (password !== passwordConfirm) {
+        if (message) {
+            message.textContent =
+                "❌ Les mots de passe ne correspondent pas.";
+        }
+        return;
+    }
+
+    if (password.length < 6) {
+        if (message) {
+            message.textContent =
+                "❌ Le mot de passe doit contenir au moins 6 caractères.";
+        }
+        return;
+    }
+
+    if (message) {
+        message.textContent =
+            "Création du compte en cours...";
+    }
+
+    try {
+
+        const {
+            data,
+            error
+        } = await supabaseClient.auth.signUp({
+            email: email,
+            password: password
+        });
+
+        if (error) {
+            throw error;
+        }
+
+        if (!data?.user) {
+            throw new Error(
+                "Impossible de créer le compte."
+            );
+        }
+
+        const {
+            error: profileError
+        } = await supabaseClient
+            .from("profiles")
+            .upsert({
+                id: data.user.id,
+                full_name: name,
+                phone: phone,
+                role: "customer"
+            });
+
+        if (profileError) {
+            throw profileError;
+        }
+
+        showModal(`
+            <div class="modal-success">
+
+                <h2>Compte créé avec succès 🎉</h2>
+
+                <p>
+                    Votre compte Zando a été créé.
+                </p>
+
+                <p>
+                    Vous pouvez maintenant vous connecter
+                    et commencer vos achats.
+                </p>
+
+                <button
+                    class="btn btn-primary"
+                    onclick="showLoginForm()"
+                >
+                    Se connecter
+                </button>
+
+            </div>
+        `);
+
+    } catch (error) {
+
+        console.error(
+            "❌ Erreur création compte Zando :",
+            error
+        );
+
+        if (message) {
+            message.textContent =
+                "❌ " + (
+                    error.message ||
+                    "Impossible de créer le compte."
+                );
+        }
+
+    }
+
+}
+
 
 function showLoginForm() {
 
@@ -1466,6 +1983,34 @@ function showLoginForm() {
             </button>
 
         </form>
+
+        <div
+            style="
+                margin-top:18px;
+                text-align:center;
+                padding-top:15px;
+                border-top:1px solid #e5e7eb;
+            "
+        >
+            <p style="margin:0 0 8px;color:#64748b;">
+                Vous n'avez pas encore de compte ?
+            </p>
+
+            <button
+                type="button"
+                onclick="showRegisterForm()"
+                style="
+                    border:0;
+                    background:none;
+                    color:#2563eb;
+                    font-weight:800;
+                    cursor:pointer;
+                    font-size:14px;
+                "
+            >
+                Créer un compte
+            </button>
+        </div>
 
         <p
             id="loginMessage"
@@ -1655,28 +2200,260 @@ async function logoutZando() {
 
 function setupSeller() {
 
-    sellerButton?.addEventListener("click", () => {
+    sellerButton?.addEventListener("click", async () => {
 
-        showModal(`
-            <h2>Devenir vendeur 🏪</h2>
+        const user = await getCurrentUser();
 
-            <p>
-                Votre espace vendeur permettra de créer
-                une boutique, ajouter des produits,
-                gérer les commandes et suivre vos ventes.
-            </p>
+        if (!user) {
+            showModal(`
+                <h2>Devenir vendeur 🏪</h2>
 
-            <br>
+                <p>
+                    Vous devez créer un compte ou vous connecter
+                    avant de devenir vendeur sur Zando.
+                </p>
 
-            <button
-                class="btn btn-primary"
-                onclick="closeModal()"
-            >
-                Compris
-            </button>
-        `);
+                <button
+                    class="btn btn-primary"
+                    style="width:100%; margin-top:15px;"
+                    onclick="showRegisterForm()"
+                >
+                    Créer un compte
+                </button>
+
+                <button
+                    class="btn btn-primary"
+                    style="width:100%; margin-top:10px;"
+                    onclick="showLoginForm()"
+                >
+                    Se connecter
+                </button>
+            `);
+
+            return;
+        }
+
+        showSellerForm();
 
     });
+
+}
+
+
+function showSellerForm() {
+
+    showModal(`
+        <h2>Créer ma boutique 🏪</h2>
+
+        <p style="color:#64748b;">
+            Présentez votre boutique aux clients de Zando.
+        </p>
+
+        <form id="sellerForm">
+
+            <label style="display:block; font-weight:700; margin-top:15px;">
+                Nom de la boutique
+            </label>
+
+            <input
+                type="text"
+                id="sellerStoreName"
+                required
+                maxlength="100"
+                placeholder="Ex : Boutique Ange Fashion"
+                style="
+                    width:100%;
+                    box-sizing:border-box;
+                    padding:12px;
+                    margin:8px 0 15px;
+                    border:1px solid #d1d5db;
+                    border-radius:9px;
+                "
+            >
+
+            <label style="display:block; font-weight:700;">
+                Description
+            </label>
+
+            <textarea
+                id="sellerStoreDescription"
+                maxlength="500"
+                placeholder="Décrivez votre boutique..."
+                style="
+                    width:100%;
+                    min-height:100px;
+                    box-sizing:border-box;
+                    padding:12px;
+                    margin:8px 0 15px;
+                    border:1px solid #d1d5db;
+                    border-radius:9px;
+                    resize:vertical;
+                "
+            ></textarea>
+
+            <button
+                type="submit"
+                class="btn btn-primary"
+                style="width:100%;"
+            >
+                🏪 Créer ma boutique
+            </button>
+
+        </form>
+
+        <p
+            id="sellerMessage"
+            style="margin-top:15px;"
+        ></p>
+    `);
+
+    const form =
+        document.getElementById("sellerForm");
+
+    form?.addEventListener(
+        "submit",
+        createSellerStore
+    );
+
+}
+
+
+async function createSellerStore(event) {
+
+    event.preventDefault();
+
+    const name =
+        document.getElementById("sellerStoreName")?.value.trim();
+
+    const description =
+        document.getElementById("sellerStoreDescription")?.value.trim();
+
+    const message =
+        document.getElementById("sellerMessage");
+
+    if (!name) {
+
+        if (message) {
+            message.textContent =
+                "❌ Le nom de la boutique est obligatoire.";
+        }
+
+        return;
+    }
+
+    if (message) {
+        message.textContent =
+            "Création de votre boutique en cours...";
+    }
+
+    try {
+
+        const user = await getCurrentUser();
+
+        if (!user) {
+            throw new Error(
+                "Vous devez être connecté pour créer une boutique."
+            );
+        }
+
+        const {
+            data: existingStore,
+            error: existingError
+        } = await supabaseClient
+            .from("stores")
+            .select("id, name, status")
+            .eq("owner_id", user.id)
+            .maybeSingle();
+
+        if (existingError) {
+            throw existingError;
+        }
+
+        if (existingStore) {
+
+            if (message) {
+                message.textContent =
+                    "ℹ️ Vous avez déjà une boutique : " +
+                    existingStore.name;
+            }
+
+            return;
+        }
+
+        const slug =
+            name
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^-+|-+$/g, "");
+
+        const {
+            data: store,
+            error
+        } = await supabaseClient
+            .from("stores")
+            .insert({
+                owner_id: user.id,
+                name: name,
+                slug: slug,
+                description: description || null,
+                status: "pending"
+            })
+            .select()
+            .single();
+
+        if (error) {
+            throw error;
+        }
+
+        console.log(
+            "✅ Boutique créée :",
+            store
+        );
+
+        showModal(`
+            <div class="modal-success">
+
+                <h2>Boutique créée avec succès 🎉</h2>
+
+                <p>
+                    Votre boutique
+                    <strong>${escapeHTML(name)}</strong>
+                    a bien été enregistrée.
+                </p>
+
+                <p>
+                    Elle est actuellement en attente de validation.
+                </p>
+
+                <button
+                    class="btn btn-primary"
+                    style="width:100%;"
+                    onclick="closeModal()"
+                >
+                    Continuer
+                </button>
+
+            </div>
+        `);
+
+    } catch (error) {
+
+        console.error(
+            "❌ Erreur création boutique :",
+            error
+        );
+
+        if (message) {
+            message.textContent =
+                "❌ " + (
+                    error.message ||
+                    "Impossible de créer la boutique."
+                );
+        }
+
+    }
 
 }
 
