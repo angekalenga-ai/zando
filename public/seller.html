@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Zando — Espace vendeur</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f8fafc;
+    color: #0f172a;
+}
+
+header {
+    background: #111827;
+    color: white;
+    padding: 18px 20px;
+}
+
+.header-inner {
+    max-width: 1100px;
+    margin: auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+}
+
+.brand {
+    font-size: 24px;
+    font-weight: 900;
+}
+
+.subtitle {
+    color: #cbd5e1;
+    margin-top: 4px;
+    font-size: 13px;
+}
+
+.container {
+    max-width: 1100px;
+    margin: auto;
+    padding: 25px 20px;
+}
+
+.card {
+    background: white;
+    border-radius: 16px;
+    padding: 22px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 25px rgba(0,0,0,.06);
+}
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.stat {
+    background: white;
+    padding: 20px;
+    border-radius: 16px;
+    box-shadow: 0 8px 25px rgba(0,0,0,.06);
+}
+
+.stat-label {
+    display: block;
+    color: #64748b;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.stat strong {
+    font-size: 28px;
+}
+
+.badge {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.active {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.inactive {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.btn {
+    border: 0;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.primary {
+    background: #2563eb;
+    color: white;
+}
+
+.secondary {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+.danger {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th,
+td {
+    padding: 13px 10px;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+}
+
+th {
+    color: #64748b;
+    font-size: 13px;
+}
+
+.empty {
+    text-align: center;
+    color: #64748b;
+    padding: 30px;
+}
+
+#error {
+    display: none;
+    background: #fee2e2;
+    color: #991b1b;
+    padding: 15px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+}
+
+#loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: #64748b;
+}
+
+@media (max-width: 700px) {
+
+    .stats {
+        grid-template-columns: 1fr;
+    }
+
+    .header-inner {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .table-wrap {
+        overflow-x: auto;
+    }
+
+    table {
+        min-width: 650px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <div class="header-inner">
+
+        <div>
+            <div class="brand">Zando 🛍️</div>
+
+            <div class="subtitle">
+                Espace vendeur
+            </div>
+        </div>
+
+        <button
+            class="btn secondary"
+            id="logoutBtn"
+        >
+            Déconnexion
+        </button>
+
+    </div>
+</header>
+
+<main class="container">
+
+    <div id="loading">
+        Chargement de votre espace vendeur...
+    </div>
+
+    <div id="error"></div>
+
+    <section id="sellerContent" style="display:none;">
+
+        <div class="card">
+
+            <h1 id="storeName">
+                Ma boutique
+            </h1>
+
+            <p id="storeDescription">
+                —
+            </p>
+
+            <span
+                id="storeStatus"
+                class="badge"
+            >
+                —
+            </span>
+
+        </div>
+
+        <section class="stats">
+
+            <div class="stat">
+                <span class="stat-label">
+                    📦 Produits
+                </span>
+
+                <strong id="statProducts">
+                    0
+                </strong>
+            </div>
+
+            <div class="stat">
+                <span class="stat-label">
+                    📊 Produits actifs
+                </span>
+
+                <strong id="statActiveProducts">
+                    0
+                </strong>
+            </div>
+
+            <div class="stat">
+                <span class="stat-label">
+                    🏪 Boutique
+                </span>
+
+                <strong id="statStoreStatus">
+                    —
+                </strong>
+            </div>
+
+        </section>
+
+        <section class="card">
+
+            <div class="actions">
+
+                <button
+                    class="btn primary"
+                    id="addProductBtn"
+                >
+                    ➕ Ajouter un produit
+                </button>
+
+                <button
+                    class="btn secondary"
+                    id="refreshBtn"
+                >
+                    🔄 Actualiser
+                </button>
+
+            </div>
+
+        </section>
+
+        <section class="card">
+
+            <h2>Mes produits</h2>
+
+            <div class="table-wrap">
+
+                <table>
+
+                    <thead>
+                        <tr>
+                            <th>Produit</th>
+                            <th>Prix</th>
+                            <th>Stock</th>
+                            <th>Statut</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="productsBody">
+
+                        <tr>
+                            <td
+                                colspan="5"
+                                class="empty"
+                            >
+                                Chargement...
+                            </td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+    </section>
+
+</main>
+
+<script>
+
+const SUPABASE_URL =
+    "https://kcrliiinrjlrcspnaeac.supabase.co";
+
+const SUPABASE_KEY =
+    "sb_publishable_iv3rzG16WGv7e7DObdzCNw_dDs4VDM3";
+
+const supabaseClient =
+    window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+    );
+
+let currentUser = null;
+let currentStore = null;
+let products = [];
+
+function escapeHTML(value) {
+
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+}
+
+function showError(message) {
+
+    const box =
+        document.getElementById("error");
+
+    box.textContent =
+        message || "Une erreur est survenue.";
+
+    box.style.display = "block";
+
+}
+
+function hideLoading() {
+
+    document
+        .getElementById("loading")
+        .style.display = "none";
+
+}
+
+function statusLabel(status) {
+
+    const labels = {
+
+        pending: "En attente",
+        active: "Active",
+        inactive: "Inactive"
+
+    };
+
+    return labels[status] || status || "—";
+
+}
+
+async function requireSeller() {
+
+    const {
+        data: {
+            user
+        },
+        error
+    } =
+        await supabaseClient.auth.getUser();
+
+    if (error) {
+        throw error;
+    }
+
+    if (!user) {
+
+        throw new Error(
+            "Vous devez être connecté."
+        );
+
+    }
+
+    currentUser = user;
+
+    const {
+        data: profile,
+        error: profileError
+    } =
+        await supabaseClient
+            .from("profiles")
+            .select("role")
+            .eq("id", user.id)
+            .single();
+
+    if (profileError) {
+        throw profileError;
+    }
+
+    if (
+        profile.role !== "seller" &&
+        profile.role !== "admin"
+    ) {
+
+        throw new Error(
+            "SELLER_REQUIRED"
+        );
+
+    }
+
+}
+
+async function loadStore() {
+
+    const {
+        data,
+        error
+    } =
+        await supabaseClient
+            .from("stores")
+            .select(`
+                id,
+                name,
+                slug,
+                description,
+                status
+            `)
+            .eq(
+                "owner_id",
+                currentUser.id
+            )
+            .maybeSingle();
+
+    if (error) {
+        throw error;
+    }
+
+    if (!data) {
+
+        throw new Error(
+            "Aucune boutique n'est associée à ce compte."
+        );
+
+    }
+
+    currentStore = data;
+
+    document
+        .getElementById("storeName")
+        .textContent = data.name;
+
+    document
+        .getElementById("storeDescription")
+        .textContent =
+            data.description ||
+            "Aucune description.";
+
+    const status =
+        document.getElementById("storeStatus");
+
+    status.textContent =
+        statusLabel(data.status);
+
+    status.className =
+        "badge " +
+        (data.status || "");
+
+    document
+        .getElementById("statStoreStatus")
+        .textContent =
+            statusLabel(data.status);
+
+}
+
+async function loadProducts() {
+
+    const {
+        data,
+        error
+    } =
+        await supabaseClient
+            .from("products")
+            .select(`
+                id,
+                name,
+                price,
+                currency,
+                stock_quantity,
+                status
+            `)
+            .eq(
+                "store_id",
+                currentStore.id
+            )
+            .order(
+                "created_at",
+                {
+                    ascending: false
+                }
+            );
+
+    if (error) {
+        throw error;
+    }
+
+    products = data || [];
+
+    document
+        .getElementById("statProducts")
+        .textContent =
+            products.length;
+
+    document
+        .getElementById("statActiveProducts")
+        .textContent =
+            products.filter(
+                product =>
+                    product.status === "active"
+            ).length;
+
+    renderProducts();
+
+}
+
+function renderProducts() {
+
+    const body =
+        document.getElementById(
+            "productsBody"
+        );
+
+    if (!products.length) {
+
+        body.innerHTML = `
+            <tr>
+                <td
+                    colspan="5"
+                    class="empty"
+                >
+                    Aucun produit pour le moment.
+                </td>
+            </tr>
+        `;
+
+        return;
+
+    }
+
+    body.innerHTML =
+        products.map(product => {
+
+            const price =
+                Number(
+                    product.price || 0
+                ).toFixed(2);
+
+            return `
+                <tr>
+
+                    <td>
+                        <strong>
+                            ${escapeHTML(product.name)}
+                        </strong>
+                    </td>
+
+                    <td>
+                        ${price}
+                        ${escapeHTML(
+                            product.currency || "USD"
+                        )}
+                    </td>
+
+                    <td>
+                        ${escapeHTML(
+                            product.stock_quantity ?? 0
+                        )}
+                    </td>
+
+                    <td>
+                        ${escapeHTML(
+                            statusLabel(
+                                product.status
+                            )
+                        )}
+                    </td>
+
+                    <td>
+                        <button
+                            class="btn secondary"
+                            onclick="editProduct('${escapeHTML(product.id)}')"
+                        >
+                            ✏️ Modifier
+                        </button>
+                    </td>
+
+                </tr>
+            `;
+
+        }).join("");
+
+}
+
+function editProduct(productId) {
+
+    const product =
+        products.find(
+            item =>
+                item.id === productId
+        );
+
+    if (!product) {
+        return;
+    }
+
+    alert(
+        "La modification des produits sera ajoutée à la prochaine étape."
+    );
+
+}
+
+document
+    .getElementById("refreshBtn")
+    .addEventListener(
+        "click",
+        init
+    );
+
+document
+    .getElementById("addProductBtn")
+    .addEventListener(
+        "click",
+        () => {
+
+            alert(
+                "Le formulaire d'ajout de produit sera ajouté à la prochaine étape."
+            );
+
+        }
+    );
+
+document
+    .getElementById("logoutBtn")
+    .addEventListener(
+        "click",
+        async () => {
+
+            await supabaseClient
+                .auth
+                .signOut();
+
+            window.location.href =
+                "index.html";
+
+        }
+    );
+
+async function init() {
+
+    try {
+
+        document
+            .getElementById("error")
+            .style.display = "none";
+
+        await requireSeller();
+
+        await loadStore();
+
+        await loadProducts();
+
+        hideLoading();
+
+        document
+            .getElementById("sellerContent")
+            .style.display = "block";
+
+    } catch (error) {
+
+        console.error(
+            "❌ Espace vendeur :",
+            error
+        );
+
+        hideLoading();
+
+        const authMissing =
+            error?.name === "AuthSessionMissingError" ||
+            error?.message === "Auth session missing!" ||
+            error?.message === "Auth session missing";
+
+        if (authMissing) {
+
+            window.location.href =
+                "index.html";
+
+            return;
+
+        }
+
+        if (
+            error.message ===
+            "SELLER_REQUIRED"
+        ) {
+
+            showError(
+                "Accès refusé : ce compte n'est pas vendeur."
+            );
+
+        } else {
+
+            showError(
+                error.message ||
+                "Impossible de charger l'espace vendeur."
+            );
+
+        }
+
+    }
+
+}
+
+window.editProduct =
+    editProduct;
+
+init();
+
+</script>
+
+</body>
+</html>
