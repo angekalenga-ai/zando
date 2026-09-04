@@ -228,7 +228,34 @@ th {
 
     <div id="error"></div>
 
-    <section id="sellerContent" style="display:none;">
+    <div id="productFormBox" style="display:none;">
+<h2 id="productFormTitle">Ajouter un produit</h2>
+<form id="productForm">
+<input type="hidden" id="productId">
+<label>Nom du produit</label>
+<input id="productName" required>
+<label>Description</label>
+<textarea id="productDescription"></textarea>
+<label>Prix</label>
+<input id="productPrice" type="number" min="0" step="0.01" required>
+<label>Prix comparé</label>
+<input id="productComparePrice" type="number" min="0" step="0.01">
+<label>Devise</label>
+<select id="productCurrency"><option value="CDF">CDF</option><option value="USD">USD</option><option value="EUR">EUR</option></select>
+<label>Stock</label>
+<input id="productStock" type="number" min="0" step="1" value="0" required>
+<label>Statut</label>
+<select id="productStatus"><option value="active">Actif</option><option value="draft">Brouillon</option><option value="inactive">Inactif</option></select>
+<label>Catégorie</label>
+<select id="productCategory"><option value="">Aucune catégorie</option></select>
+<label>Sous-catégorie</label>
+<select id="productSubcategory" disabled><option value="">Aucune sous-catégorie</option></select>
+<button type="submit" class="btn primary">Enregistrer</button>
+<button type="button" class="btn secondary" id="cancelProductBtn">Annuler</button>
+</form>
+</div>
+
+<section id="sellerContent" style="display:none;">
 
         <div class="card">
 
@@ -641,6 +668,12 @@ function renderProducts() {
                         >
                             ✏️ Modifier
                         </button>
+                        <button
+                            class="btn danger"
+                            onclick="deleteProduct('${escapeHTML(product.id)}')"
+                        >
+                            🗑️ Supprimer
+                        </button>
                     </td>
 
                 </tr>
@@ -648,6 +681,62 @@ function renderProducts() {
 
         }).join("");
 
+}
+
+async function saveProduct(event) {
+    event.preventDefault();
+
+    const name = document.getElementById("productName").value.trim();
+    const price = Number(document.getElementById("productPrice").value);
+    const stock = Number(document.getElementById("productStock").value);
+    const currency = document.getElementById("productCurrency").value;
+    const status = document.getElementById("productStatus").value;
+
+    if (!name || !Number.isFinite(price)) {
+        alert("Veuillez remplir les champs obligatoires.");
+        return;
+    }
+
+    const payload = {
+        name,
+        slug: name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+        description: document.getElementById("productDescription").value.trim() || null,
+        price,
+        compare_at_price: document.getElementById("productComparePrice").value === "" ? null : Number(document.getElementById("productComparePrice").value),
+        currency,
+        stock_quantity: stock,
+        status,
+        store_id: currentStore.id,
+        category_id: document.getElementById("productSubcategory").value || document.getElementById("productCategory").value || null
+    };
+    const { error } = await supabaseClient.from("products").insert(payload);
+    if (error) { alert("Erreur : " + error.message); return; }
+    await loadProducts();
+    document.getElementById("productForm").reset();
+    document.getElementById("productFormBox").style.display = "none";
+}
+document.getElementById("cancelProductBtn").addEventListener("click", () => { document.getElementById("productFormBox").style.display = "none"; });
+document.getElementById("productForm").addEventListener("submit", saveProduct);
+async function deleteProduct(productId) {
+    const product = products.find(item => item.id === productId);
+    if (!product) return;
+
+    if (!confirm("Supprimer ce produit ?")) return;
+
+    const { error } = await supabaseClient
+        .from("products")
+        .delete()
+        .eq("id", productId)
+        .eq("store_id", currentStore.id);
+
+    if (error) {
+        console.error(error);
+        alert("Impossible de supprimer le produit.");
+        return;
+    }
+
+    await loadProducts();
+    alert("Produit supprimé avec succès.");
 }
 
 function editProduct(productId) {
@@ -680,14 +769,9 @@ document
     .addEventListener(
         "click",
         () => {
-
-            alert(
-                "Le formulaire d'ajout de produit sera ajouté à la prochaine étape."
-            );
-
+            document.getElementById("productFormBox").style.display = "block";
         }
     );
-
 document
     .getElementById("logoutBtn")
     .addEventListener(
