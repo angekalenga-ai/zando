@@ -175,6 +175,93 @@ th {
     color: #64748b;
 }
 
+#productFormBox {
+    margin-bottom: 20px;
+}
+
+#productForm {
+    display: grid;
+    gap: 14px;
+}
+
+#productForm h2 {
+    margin: 0 0 8px;
+    font-size: 22px;
+}
+
+#productForm input[type="file"] {
+    padding: 10px;
+    background: #f8fafc;
+}
+
+#productForm label {
+    font-weight: 700;
+    font-size: 14px;
+    color: #334155;
+}
+
+#productForm input,
+#productForm textarea,
+#productForm select {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    font: inherit;
+    background: #fff;
+}
+
+#productForm textarea {
+    min-height: 110px;
+    resize: vertical;
+}
+
+#productForm .form-section {
+    padding: 18px;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #f8fafc;
+}
+
+#productForm .form-section-title {
+    margin: 0 0 14px;
+    font-size: 16px;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+#productForm input:focus,
+#productForm textarea:focus,
+#productForm select:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+}
+
+#productForm button {
+    margin-top: 4px;
+}
+
+@media (min-width: 701px) {
+    #productForm {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    #productForm > input[type="hidden"],
+    #productForm > h2,
+    #productForm > .form-section:first-of-type {
+        grid-column: 1 / -1;
+    }
+
+    #productForm > .form-section {
+        align-self: start;
+    }
+
+    #productForm > .form-section:last-of-type {
+        grid-column: 1 / -1;
+    }
+}
+
 @media (max-width: 700px) {
 
     .stats {
@@ -232,10 +319,15 @@ th {
 <h2 id="productFormTitle">Ajouter un produit</h2>
 <form id="productForm">
 <input type="hidden" id="productId">
+<div class="form-section">
+<h3 class="form-section-title">Informations du produit</h3>
 <label>Nom du produit</label>
 <input id="productName" required>
 <label>Description</label>
 <textarea id="productDescription"></textarea>
+</div>
+<div class="form-section">
+<h3 class="form-section-title">Prix et stock</h3>
 <label>Prix</label>
 <input id="productPrice" type="number" min="0" step="0.01" required>
 <label>Prix comparé</label>
@@ -244,12 +336,20 @@ th {
 <select id="productCurrency"><option value="CDF">CDF</option><option value="USD">USD</option><option value="EUR">EUR</option></select>
 <label>Stock</label>
 <input id="productStock" type="number" min="0" step="1" value="0" required>
-<label>Statut</label>
-<select id="productStatus"><option value="active">Actif</option><option value="draft">Brouillon</option><option value="inactive">Inactif</option></select>
+</div>
+<div class="form-section">
+<h3 class="form-section-title">Catégorisation</h3>
 <label>Catégorie</label>
 <select id="productCategory"><option value="">Aucune catégorie</option></select>
 <label>Sous-catégorie</label>
 <select id="productSubcategory" disabled><option value="">Aucune sous-catégorie</option></select>
+</div>
+<div class="form-section">
+<h3 class="form-section-title">Publication et image</h3>
+<label>Statut</label>
+<select id="productStatus"><option value="active">Actif</option><option value="draft">Brouillon</option><option value="inactive">Inactif</option></select>
+<label>Image du produit</label>
+<input id="productImage" type="file" accept="image/jpeg,image/png,image/webp">
 <button type="submit" class="btn primary">Enregistrer</button>
 <button type="button" class="btn secondary" id="cancelProductBtn">Annuler</button>
 </form>
@@ -390,6 +490,8 @@ const supabaseClient =
 let currentUser = null;
 let currentStore = null;
 let products = [];
+let categories = [];
+let editingProductId = null;
 
 function escapeHTML(value) {
 
@@ -549,6 +651,79 @@ async function loadStore() {
 
 }
 
+async function loadCategories() {
+
+    const { data, error } = await supabaseClient
+        .from("categories")
+        .select("id, name, parent_id")
+        .order("name", { ascending: true });
+
+    if (error) {
+        console.error(error);
+        return;
+    }
+
+    categories = data || [];
+
+    const mainCategories =
+        categories.filter(category => !category.parent_id);
+
+    const categorySelect =
+        document.getElementById("productCategory");
+
+    const subcategorySelect =
+        document.getElementById("productSubcategory");
+
+    if (categorySelect) {
+        categorySelect.innerHTML =
+            '<option value="">Aucune catégorie</option>' +
+            mainCategories.map(category =>
+                `<option value="${category.id}">${escapeHTML(category.name)}</option>`
+            ).join("");
+    }
+
+    if (subcategorySelect) {
+        subcategorySelect.innerHTML =
+            '<option value="">Aucune sous-catégorie</option>';
+        subcategorySelect.disabled = true;
+    }
+}
+
+function loadSubcategories(parentId, selectedId = "") {
+
+    const subcategorySelect =
+        document.getElementById("productSubcategory");
+
+    if (!subcategorySelect) return;
+
+    const subcategories =
+        categories.filter(
+            category => category.parent_id === parentId
+        );
+
+    subcategorySelect.innerHTML =
+        '<option value="">Aucune sous-catégorie</option>' +
+        subcategories.map(category =>
+            `<option value="${category.id}">${escapeHTML(category.name)}</option>`
+        ).join("");
+
+    subcategorySelect.disabled =
+        subcategories.length === 0;
+
+    if (selectedId) {
+        subcategorySelect.value = selectedId;
+    }
+}
+
+const productCategorySelect =
+    document.getElementById("productCategory");
+
+if (productCategorySelect) {
+    productCategorySelect.addEventListener("change", function () {
+        loadSubcategories(this.value);
+    });
+}
+
 async function loadProducts() {
 
     const {
@@ -560,10 +735,14 @@ async function loadProducts() {
             .select(`
                 id,
                 name,
+                slug,
+                description,
                 price,
+                compare_at_price,
                 currency,
                 stock_quantity,
-                status
+                status,
+                category_id
             `)
             .eq(
                 "store_id",
@@ -683,6 +862,28 @@ function renderProducts() {
 
 }
 
+async function uploadProductImage(file, productId) {
+    if (!file) return null;
+
+    const ext = file.name.split(".").pop().toLowerCase();
+    const path = currentUser.id + "/" + productId + "." + ext;
+
+    const { error } = await supabaseClient.storage
+        .from("product-images")
+        .upload(path, file, {
+            contentType: file.type,
+            upsert: false
+        });
+
+    if (error) throw error;
+
+    const { data } = supabaseClient.storage
+        .from("product-images")
+        .getPublicUrl(path);
+
+    return data.publicUrl;
+}
+
 async function saveProduct(event) {
     event.preventDefault();
 
@@ -691,15 +892,24 @@ async function saveProduct(event) {
     const stock = Number(document.getElementById("productStock").value);
     const currency = document.getElementById("productCurrency").value;
     const status = document.getElementById("productStatus").value;
+    const imageFile = document.getElementById("productImage").files[0] || null;
+
 
     if (!name || !Number.isFinite(price)) {
         alert("Veuillez remplir les champs obligatoires.");
         return;
     }
 
+    const existingProduct = editingProductId
+        ? products.find(item => item.id === editingProductId)
+        : null;
+
+    const productSlug = existingProduct?.slug ||
+        name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + Date.now();
+
     const payload = {
         name,
-        slug: name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + Date.now(),
+        slug: productSlug,
         description: document.getElementById("productDescription").value.trim() || null,
         price,
         compare_at_price: document.getElementById("productComparePrice").value === "" ? null : Number(document.getElementById("productComparePrice").value),
@@ -709,13 +919,79 @@ async function saveProduct(event) {
         store_id: currentStore.id,
         category_id: document.getElementById("productSubcategory").value || document.getElementById("productCategory").value || null
     };
-    const { error } = await supabaseClient.from("products").insert(payload);
-    if (error) { alert("Erreur : " + error.message); return; }
+    let savedProductId = editingProductId;
+    if (editingProductId) {
+        const { error } = await supabaseClient
+            .from("products")
+            .update(payload)
+            .eq("id", editingProductId)
+            .eq("store_id", currentStore.id);
+
+        if (error) {
+            alert("Erreur : " + error.message);
+            return;
+        }
+    } else {
+        const { data: createdProduct, error } = await supabaseClient
+            .from("products")
+            .insert(payload)
+            .select("id")
+            .single();
+
+        if (error) {
+            alert("Erreur : " + error.message);
+            return;
+        }
+
+        savedProductId = createdProduct.id;
+    }
+
+    if (imageFile) {
+        try {
+            const imageUrl =
+                await uploadProductImage(
+                    imageFile,
+                    savedProductId
+                );
+
+            if (imageUrl) {
+                const { error: imageError } =
+                    await supabaseClient
+                        .from("product_images")
+                        .insert({
+                            product_id:
+                                savedProductId,
+                            image_url:
+                                imageUrl,
+                            alt_text:
+                                name,
+                            sort_order:
+                                0
+                        });
+
+                if (imageError) {
+                    throw imageError;
+                }
+            }
+
+        } catch (imageError) {
+            console.error(
+                "Erreur image :",
+                imageError
+            );
+
+            alert(
+                "Produit créé, mais impossible d'enregistrer l'image : " +
+                imageError.message
+            );
+        }
+    }
+
     await loadProducts();
     document.getElementById("productForm").reset();
     document.getElementById("productFormBox").style.display = "none";
 }
-document.getElementById("cancelProductBtn").addEventListener("click", () => { document.getElementById("productFormBox").style.display = "none"; });
+document.getElementById("cancelProductBtn").addEventListener("click", () => { editingProductId = null; document.getElementById("productFormTitle").textContent = "Ajouter un produit"; document.getElementById("productForm").reset(); document.getElementById("productFormBox").style.display = "none"; });
 document.getElementById("productForm").addEventListener("submit", saveProduct);
 async function deleteProduct(productId) {
     const product = products.find(item => item.id === productId);
@@ -751,10 +1027,69 @@ function editProduct(productId) {
         return;
     }
 
-    alert(
-        "La modification des produits sera ajoutée à la prochaine étape."
-    );
+    editingProductId = product.id;
 
+    document.getElementById("productFormTitle").textContent =
+        "Modifier le produit";
+
+    document.getElementById("productId").value =
+        product.id;
+
+    document.getElementById("productName").value =
+        product.name || "";
+
+    document.getElementById("productDescription").value =
+        product.description || "";
+
+    document.getElementById("productPrice").value =
+        product.price ?? "";
+
+    document.getElementById("productComparePrice").value =
+        product.compare_at_price ?? "";
+
+    document.getElementById("productCurrency").value =
+        product.currency || "CDF";
+
+    document.getElementById("productStock").value =
+        product.stock_quantity ?? 0;
+
+    document.getElementById("productStatus").value =
+        product.status || "draft";
+
+    const category =
+        categories.find(
+            item =>
+                item.id === product.category_id
+        );
+
+    if (category && category.parent_id) {
+
+        document.getElementById("productCategory").value =
+            category.parent_id;
+
+        loadSubcategories(
+            category.parent_id,
+            category.id
+        );
+
+    } else {
+
+        document.getElementById("productCategory").value =
+            product.category_id || "";
+
+        loadSubcategories(
+            product.category_id || ""
+        );
+
+    }
+
+    document.getElementById("productFormBox").style.display =
+        "block";
+
+    document.getElementById("productFormBox").scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
 }
 
 document
@@ -799,6 +1134,8 @@ async function init() {
         await requireSeller();
 
         await loadStore();
+
+        await loadCategories();
 
         await loadProducts();
 
