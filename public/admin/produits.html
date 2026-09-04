@@ -549,9 +549,16 @@
                 </div>
 
                 <div class="product-form-group">
-                    <label for="productCategory">Catégorie</label>
+                    <label for="productCategory">Catégorie principale</label>
                     <select id="productCategory">
                         <option value="">Aucune catégorie</option>
+                    </select>
+                </div>
+
+                <div class="product-form-group">
+                    <label for="productSubcategory">Sous-catégorie</label>
+                    <select id="productSubcategory" disabled>
+                        <option value="">Aucune sous-catégorie</option>
                     </select>
                 </div>
 
@@ -716,7 +723,7 @@ async function loadStoresAndCategories() {
 
     const categoriesResult = await supabaseClient
         .from("categories")
-        .select("id, name")
+        .select("id, name, parent_id")
         .order("name", { ascending: true });
 
     if (categoriesResult.error) {
@@ -725,11 +732,17 @@ async function loadStoresAndCategories() {
 
     categories = categoriesResult.data || [];
 
+    const mainCategories =
+        categories.filter(category => !category.parent_id);
+
     const storeSelect =
         document.getElementById("productStore");
 
     const categorySelect =
         document.getElementById("productCategory");
+
+    const subcategorySelect =
+        document.getElementById("productSubcategory");
 
     if (storeSelect) {
         storeSelect.innerHTML =
@@ -744,12 +757,61 @@ async function loadStoresAndCategories() {
     if (categorySelect) {
         categorySelect.innerHTML =
             '<option value="">Aucune catégorie</option>' +
-            categories.map(category =>
+            mainCategories.map(category =>
                 `<option value="${category.id}">
                     ${escapeHtml(category.name)}
                 </option>`
             ).join("");
     }
+
+    if (subcategorySelect) {
+        subcategorySelect.innerHTML =
+            '<option value="">Aucune sous-catégorie</option>';
+
+        subcategorySelect.disabled = true;
+    }
+}
+
+function loadSubcategories(parentId, selectedId = "") {
+
+    const subcategorySelect =
+        document.getElementById("productSubcategory");
+
+    if (!subcategorySelect) {
+        return;
+    }
+
+    const subcategories =
+        categories.filter(
+            category =>
+                category.parent_id === parentId
+        );
+
+    subcategorySelect.innerHTML =
+        '<option value="">Aucune sous-catégorie</option>' +
+        subcategories.map(category =>
+            `<option value="${category.id}">
+                ${escapeHtml(category.name)}
+            </option>`
+        ).join("");
+
+    subcategorySelect.disabled =
+        subcategories.length === 0;
+
+    if (selectedId) {
+        subcategorySelect.value = selectedId;
+    }
+}
+
+const productCategorySelect =
+    document.getElementById("productCategory");
+
+if (productCategorySelect) {
+    productCategorySelect.addEventListener("change", function () {
+
+        loadSubcategories(this.value);
+
+    });
 }
 
 function openProductModal(product = null) {
@@ -795,8 +857,52 @@ function openProductModal(product = null) {
     document.getElementById("productStore").value =
         product?.store_id || "";
 
-    document.getElementById("productCategory").value =
-        product?.category_id || "";
+    const categorySelect =
+        document.getElementById("productCategory");
+
+    const subcategorySelect =
+        document.getElementById("productSubcategory");
+
+    if (categorySelect) {
+        categorySelect.value = "";
+    }
+
+    if (subcategorySelect) {
+        subcategorySelect.value = "";
+        subcategorySelect.disabled = true;
+    }
+
+    if (product?.category_id) {
+
+        const selectedCategory =
+            categories.find(
+                category =>
+                    category.id === product.category_id
+            );
+
+        if (selectedCategory) {
+
+            if (selectedCategory.parent_id) {
+
+                categorySelect.value =
+                    selectedCategory.parent_id;
+
+                loadSubcategories(
+                    selectedCategory.parent_id,
+                    selectedCategory.id
+                );
+
+            } else {
+
+                categorySelect.value =
+                    selectedCategory.id;
+
+                loadSubcategories(
+                    selectedCategory.id
+                );
+            }
+        }
+    }
 
     modal.classList.add("active");
 }
@@ -864,8 +970,14 @@ async function saveProduct(event) {
     const storeId =
         document.getElementById("productStore").value;
 
-    const categoryId =
+    const mainCategoryId =
         document.getElementById("productCategory").value || null;
+
+    const subcategoryId =
+        document.getElementById("productSubcategory").value || null;
+
+    const categoryId =
+        subcategoryId || mainCategoryId;
 
     if (!name || priceValue === "" || !storeId) {
         showProductMessage("⚠️ Veuillez remplir les champs obligatoires.","error");
@@ -944,8 +1056,9 @@ async function saveProduct(event) {
         );
 
         showProductMessage(
-            "Impossible d'enregistrer le produit : " +
-            (error.message || "Erreur inconnue")
+            "❌ Impossible d'enregistrer le produit : " +
+            (error.message || "Erreur inconnue"),
+            "error"
         );
     }
 }
