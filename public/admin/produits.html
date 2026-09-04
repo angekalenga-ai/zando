@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Zando Panafricain — Produits</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            color: #172033;
+        }
+
+        .topbar {
+            background: #111827;
+            color: white;
+            padding: 16px 22px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .topbar h1 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .back {
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .container {
+            max-width: 1250px;
+            margin: 25px auto;
+            padding: 0 16px;
+        }
+
+        .toolbar {
+            background: white;
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 4px 18px rgba(0,0,0,.06);
+            margin-bottom: 20px;
+        }
+
+        .toolbar-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        input,
+        select {
+            border: 1px solid #d7dce5;
+            border-radius: 9px;
+            padding: 11px 13px;
+            font-size: 14px;
+            background: white;
+        }
+
+        input {
+            flex: 1;
+            min-width: 220px;
+        }
+
+        select {
+            min-width: 150px;
+        }
+
+        button {
+            border: 0;
+            border-radius: 9px;
+            padding: 11px 16px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: #111827;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #e8edf5;
+            color: #172033;
+        }
+
+        .btn-danger {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat {
+            background: white;
+            padding: 18px;
+            border-radius: 14px;
+            box-shadow: 0 4px 18px rgba(0,0,0,.05);
+        }
+
+        .stat-label {
+            color: #687386;
+            font-size: 13px;
+        }
+
+        .stat-value {
+            margin-top: 8px;
+            font-size: 25px;
+            font-weight: 700;
+        }
+
+        .card {
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 4px 18px rgba(0,0,0,.06);
+            overflow: hidden;
+        }
+
+        .table-wrap {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 850px;
+        }
+
+        th,
+        td {
+            padding: 14px;
+            text-align: left;
+            border-bottom: 1px solid #edf0f5;
+            font-size: 14px;
+        }
+
+        th {
+            background: #f8fafc;
+            color: #596579;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .product-name {
+            font-weight: 700;
+        }
+
+        .muted {
+            color: #778196;
+            font-size: 12px;
+            margin-top: 3px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 9px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .badge-active {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-draft {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-inactive {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .actions {
+            display: flex;
+            gap: 7px;
+        }
+
+        .message {
+            padding: 15px 18px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .message.error {
+            display: block;
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .message.success {
+            display: block;
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 35px;
+            color: #778196;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 35px;
+            color: #687386;
+        }
+
+        @media (max-width: 800px) {
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 500px) {
+            .stats {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .topbar {
+                padding: 14px;
+            }
+
+            .container {
+                padding: 0 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header class="topbar">
+    <h1>🛍️ Gestion des produits</h1>
+
+    <a
+        class="back"
+        href="./index.html"
+    >
+        ← Retour au dashboard
+    </a>
+</header>
+
+<main class="container">
+
+    <div
+        id="message"
+        class="message"
+    ></div>
+
+    <section class="stats">
+
+        <div class="stat">
+            <div class="stat-label">
+                Total produits
+            </div>
+
+            <div
+                id="totalProducts"
+                class="stat-value"
+            >
+                0
+            </div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-label">
+                Produits actifs
+            </div>
+
+            <div
+                id="activeProducts"
+                class="stat-value"
+            >
+                0
+            </div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-label">
+                Brouillons
+            </div>
+
+            <div
+                id="draftProducts"
+                class="stat-value"
+            >
+                0
+            </div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-label">
+                Stock total
+            </div>
+
+            <div
+                id="totalStock"
+                class="stat-value"
+            >
+                0
+            </div>
+        </div>
+
+    </section>
+
+    <section class="toolbar">
+
+        <div class="toolbar-row">
+
+            <input
+                id="searchInput"
+                type="search"
+                placeholder="🔎 Rechercher un produit..."
+            >
+
+            <select id="statusFilter">
+
+                <option value="">
+                    Tous les statuts
+                </option>
+
+                <option value="active">
+                    Actifs
+                </option>
+
+                <option value="draft">
+                    Brouillons
+                </option>
+
+                <option value="inactive">
+                    Inactifs
+                </option>
+
+            </select>
+
+            <button
+                id="refreshBtn"
+                class="btn-secondary"
+            >
+                🔄 Actualiser
+            </button>
+
+            <button
+                id="addBtn"
+                class="btn-primary"
+            >
+                ➕ Ajouter
+            </button>
+
+        </div>
+
+    </section>
+
+    <section class="card">
+
+        <div class="table-wrap">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Produit</th>
+                        <th>Boutique</th>
+                        <th>Prix</th>
+                        <th>Stock</th>
+                        <th>Statut</th>
+                        <th>Créé le</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody id="productsBody">
+
+                    <tr>
+                        <td
+                            colspan="7"
+                            class="loading"
+                        >
+                            Chargement des produits...
+                        </td>
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+</main>
+
+<script>
+
+const SUPABASE_URL =
+    "https://kcrliiinrjlrcspnaeac.supabase.co";
+
+const SUPABASE_PUBLISHABLE_KEY =
+    "sb_publishable_iv3rzG16WGv7e7DObdzCNw_dDs4VDM3";
+
+const supabaseClient =
+    window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_PUBLISHABLE_KEY
+    );
+
+let products = [];
+
+function showMessage(
+    text,
+    type = "success"
+) {
+    const message =
+        document.getElementById("message");
+
+    message.textContent = text;
+    message.className =
+        "message " + type;
+}
+
+function clearMessage() {
+    const message =
+        document.getElementById("message");
+
+    message.textContent = "";
+    message.className = "message";
+}
+
+function escapeHTML(value) {
+
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+}
+
+function statusLabel(status) {
+
+    const labels = {
+        active: "Actif",
+        draft: "Brouillon",
+        inactive: "Inactif"
+    };
+
+    return labels[status] || status || "—";
+}
+
+function statusClass(status) {
+
+    if (status === "active") {
+        return "badge badge-active";
+    }
+
+    if (status === "draft") {
+        return "badge badge-draft";
+    }
+
+    return "badge badge-inactive";
+}
+
+async function requireAdmin() {
+
+    const {
+        data: {
+            user
+        },
+        error
+    } =
+        await supabaseClient.auth.getUser();
+
+    if (error) {
+        throw error;
+    }
+
+    if (!user) {
+        throw new Error(
+            "AUTH_REQUIRED"
+        );
+    }
+
+    const {
+        data: profile,
+        error: profileError
+    } =
+        await supabaseClient
+            .from("profiles")
+            .select("role")
+            .eq("id", user.id)
+            .single();
+
+    if (profileError) {
+        throw profileError;
+    }
+
+    if (
+        !profile ||
+        profile.role !== "admin"
+    ) {
+        throw new Error(
+            "ADMIN_REQUIRED"
+        );
+    }
+
+    return user;
+}
+
+async function loadProducts() {
+
+    clearMessage();
+
+    const body =
+        document.getElementById(
+            "productsBody"
+        );
+
+    body.innerHTML = `
+        <tr>
+            <td colspan="7" class="loading">
+                Chargement des produits...
+            </td>
+        </tr>
+    `;
+
+    const {
+        data,
+        error
+    } =
+        await supabaseClient
+            .from("products")
+            .select(`
+                id,
+                name,
+                price,
+                compare_at_price,
+                currency,
+                stock_quantity,
+                status,
+                created_at,
+                stores (
+                    name
+                )
+            `)
+            .order(
+                "created_at",
+                {
+                    ascending: false
+                }
+            );
+
+    if (error) {
+        throw error;
+    }
+
+    products = data || [];
+
+    updateStats();
+
+    renderProducts();
+
+}
+
+function updateStats() {
+
+    document.getElementById(
+        "totalProducts"
+    ).textContent =
+        products.length;
+
+    document.getElementById(
+        "activeProducts"
+    ).textContent =
+        products.filter(
+            p => p.status === "active"
+        ).length;
+
+    document.getElementById(
+        "draftProducts"
+    ).textContent =
+        products.filter(
+            p => p.status === "draft"
+        ).length;
+
+    document.getElementById(
+        "totalStock"
+    ).textContent =
+        products.reduce(
+            (total, product) =>
+                total +
+                Number(
+                    product.stock_quantity || 0
+                ),
+            0
+        );
+
+}
+
+function renderProducts() {
+
+    const body =
+        document.getElementById(
+            "productsBody"
+        );
+
+    const search =
+        document.getElementById(
+            "searchInput"
+        ).value
+        .trim()
+        .toLowerCase();
+
+    const status =
+        document.getElementById(
+            "statusFilter"
+        ).value;
+
+    const filtered =
+        products.filter(product => {
+
+            const matchesSearch =
+                !search ||
+                String(
+                    product.name || ""
+                )
+                .toLowerCase()
+                .includes(search);
+
+            const matchesStatus =
+                !status ||
+                product.status === status;
+
+            return (
+                matchesSearch &&
+                matchesStatus
+            );
+
+        });
+
+    if (!filtered.length) {
+
+        body.innerHTML = `
+            <tr>
+                <td
+                    colspan="7"
+                    class="empty"
+                >
+                    Aucun produit trouvé.
+                </td>
+            </tr>
+        `;
+
+        return;
+    }
+
+    body.innerHTML =
+        filtered.map(product => {
+
+            const price =
+                Number(
+                    product.price || 0
+                ).toFixed(2);
+
+            const created =
+                product.created_at
+                    ? new Date(
+                        product.created_at
+                    ).toLocaleDateString(
+                        "fr-FR"
+                    )
+                    : "—";
+
+            const store =
+                product.stores?.name ||
+                "—";
+
+            return `
+                <tr>
+
+                    <td>
+                        <div class="product-name">
+                            ${escapeHTML(
+                                product.name
+                            )}
+                        </div>
+                    </td>
+
+                    <td>
+                        ${escapeHTML(store)}
+                    </td>
+
+                    <td>
+                        <strong>
+                            ${price}
+                            ${escapeHTML(
+                                product.currency ||
+                                "USD"
+                            )}
+                        </strong>
+                    </td>
+
+                    <td>
+                        ${escapeHTML(
+                            product.stock_quantity ?? 0
+                        )}
+                    </td>
+
+                    <td>
+                        <span class="${statusClass(
+                            product.status
+                        )}">
+                            ${escapeHTML(
+                                statusLabel(
+                                    product.status
+                                )
+                            )}
+                        </span>
+                    </td>
+
+                    <td>
+                        ${created}
+                    </td>
+
+                    <td>
+
+                        <div class="actions">
+
+                            <button
+                                class="btn-secondary"
+                                onclick="editProduct('${product.id}')"
+                            >
+                                ✏️
+                            </button>
+
+                            <button
+                                class="btn-danger"
+                                onclick="deleteProduct('${product.id}')"
+                            >
+                                🗑️
+                            </button>
+
+                        </div>
+
+                    </td>
+
+                </tr>
+            `;
+
+        }).join("");
+
+}
+
+function editProduct(id) {
+
+    const product =
+        products.find(
+            p => p.id === id
+        );
+
+    if (!product) {
+        return;
+    }
+
+    alert(
+        "Édition du produit : " +
+        product.name +
+        "\n\nLe formulaire d'édition sera activé à l'étape suivante."
+    );
+
+}
+
+async function deleteProduct(id) {
+
+    const product =
+        products.find(
+            p => p.id === id
+        );
+
+    if (!product) {
+        return;
+    }
+
+    const confirmed =
+        confirm(
+            `Supprimer définitivement "${product.name}" ?`
+        );
+
+    if (!confirmed) {
+        return;
+    }
+
+    alert(
+        "La suppression sera activée après validation des permissions administrateur."
+    );
+
+}
+
+async function init() {
+
+    try {
+
+        await requireAdmin();
+
+        await loadProducts();
+
+    } catch (error) {
+
+        console.error(
+            "Erreur admin produits :",
+            error
+        );
+
+        if (
+            error.message ===
+            "AUTH_REQUIRED"
+        ) {
+
+            window.location.href =
+                "./index.html";
+
+            return;
+
+        }
+
+        if (
+            error.message ===
+            "ADMIN_REQUIRED"
+        ) {
+
+            await supabaseClient.auth.signOut();
+
+            window.location.href =
+                "./index.html";
+
+            return;
+
+        }
+
+        showMessage(
+            error.message ||
+            "Impossible de charger les produits.",
+            "error"
+        );
+
+    }
+
+}
+
+document
+    .getElementById("refreshBtn")
+    .addEventListener(
+        "click",
+        loadProducts
+    );
+
+document
+    .getElementById("searchInput")
+    .addEventListener(
+        "input",
+        renderProducts
+    );
+
+document
+    .getElementById("statusFilter")
+    .addEventListener(
+        "change",
+        renderProducts
+    );
+
+document
+    .getElementById("addBtn")
+    .addEventListener(
+        "click",
+        function () {
+
+            alert(
+                "Le formulaire d'ajout sera activé à l'étape suivante."
+            );
+
+        }
+    );
+
+init();
+
+</script>
+
+</body>
+</html>
