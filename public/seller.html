@@ -699,7 +699,7 @@ async function saveProduct(event) {
 
     const payload = {
         name,
-        slug: name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+        slug: name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + Date.now(),
         description: document.getElementById("productDescription").value.trim() || null,
         price,
         compare_at_price: document.getElementById("productComparePrice").value === "" ? null : Number(document.getElementById("productComparePrice").value),
