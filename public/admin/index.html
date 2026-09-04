@@ -352,65 +352,66 @@
 
 <body>
 
+    <!-- =========================
+         CONNEXION ADMIN
+    ========================== -->
 
-<!-- =========================
-     LOGIN
-========================= -->
+    <section id="adminLogin" class="login-screen">
 
-<div
-    id="loginScreen"
-    class="login-screen"
->
+        <div class="login-card">
 
-    <div class="login-card">
+            <h1>Connexion administrateur 🔐</h1>
 
-        <h1>
-            🔐 Administration Zando
-        </h1>
+            <p>
+                Connectez-vous pour accéder au
+                back-office Zando.
+            </p>
 
-        <p>
-            Connectez-vous avec votre compte administrateur.
-        </p>
+            <form id="adminLoginForm">
 
-        <form id="loginForm">
+                <label for="adminEmail">
+                    Adresse e-mail
+                </label>
 
-            <label>
-                Adresse email
-            </label>
+                <input
+                    id="adminEmail"
+                    type="email"
+                    autocomplete="email"
+                    required
+                    placeholder="admin@zando.com"
+                >
 
-            <input
-                id="email"
-                type="email"
-                required
-            >
+                <label for="adminPassword">
+                    Mot de passe
+                </label>
 
-            <label>
-                Mot de passe
-            </label>
+                <input
+                    id="adminPassword"
+                    type="password"
+                    autocomplete="current-password"
+                    required
+                    placeholder="Votre mot de passe"
+                >
 
-            <input
-                id="password"
-                type="password"
-                required
-            >
+                <button
+                    type="submit"
+                    class="primary"
+                >
+                    Se connecter
+                </button>
 
-            <button
-                type="submit"
-                class="primary"
-            >
-                Se connecter
-            </button>
+            </form>
 
-        </form>
+            <p
+                id="adminLoginMessage"
+                class="message"
+            ></p>
 
-        <div
-            id="message"
-            class="message"
-        ></div>
+        </div>
 
-    </div>
+    </section>
 
-</div>
+
 
 
 <!-- =========================
@@ -468,7 +469,7 @@
     </aside>
 
 
-    <main class="main">
+    <main id="adminContent" class="main">
 
         <div class="page-header">
 
@@ -701,6 +702,176 @@ async function loadDashboardStats() {
 
 
 /* =========================
+   AUTHENTIFICATION ADMIN
+========================= */
+
+const adminLogin =
+    document.getElementById("adminLogin");
+
+const adminContent =
+    document.getElementById("adminContent");
+
+const adminApp =
+    document.getElementById("adminApp");
+
+const adminLoginForm =
+    document.getElementById("adminLoginForm");
+
+const adminLoginMessage =
+    document.getElementById("adminLoginMessage");
+
+
+function showAdminLogin(message = "") {
+
+    if (adminLogin) {
+        adminLogin.style.display = "flex";
+    }
+
+    if (adminApp) {
+        adminApp.style.display = "none";
+    }
+
+    if (adminLoginMessage) {
+        adminLoginMessage.textContent = message;
+        adminLoginMessage.style.color = "#dc2626";
+    }
+}
+
+
+function showAdminContent() {
+
+    if (adminLogin) {
+        adminLogin.style.display = "none";
+    }
+
+    if (adminApp) {
+        adminApp.style.display = "grid";
+    }
+
+    if (adminContent) {
+        adminContent.style.display = "block";
+    }
+}
+
+
+/* =========================
+   CONNEXION ADMIN
+========================= */
+
+if (adminLoginForm) {
+
+    adminLoginForm.addEventListener(
+        "submit",
+        async function (event) {
+
+            event.preventDefault();
+
+            const email =
+                document
+                    .getElementById("adminEmail")
+                    ?.value
+                    .trim();
+
+            const password =
+                document
+                    .getElementById("adminPassword")
+                    ?.value;
+
+            if (!email || !password) {
+
+                if (adminLoginMessage) {
+                    adminLoginMessage.textContent =
+                        "Veuillez remplir tous les champs.";
+
+                    adminLoginMessage.style.color =
+                        "#dc2626";
+                }
+
+                return;
+            }
+
+
+            if (adminLoginMessage) {
+                adminLoginMessage.textContent =
+                    "Connexion en cours...";
+
+                adminLoginMessage.style.color =
+                    "#475569";
+            }
+
+
+            try {
+
+                const {
+                    data,
+                    error
+                } =
+                    await supabaseClient.auth.signInWithPassword({
+                        email: email,
+                        password: password
+                    });
+
+
+                if (error) {
+                    throw error;
+                }
+
+
+                if (!data?.user) {
+                    throw new Error(
+                        "Connexion impossible."
+                    );
+                }
+
+
+                await requireAdmin();
+
+                showAdminContent();
+
+                if (adminLoginMessage) {
+                    adminLoginMessage.textContent = "";
+                }
+
+                adminLoginForm.reset();
+
+                await loadDashboardStats();
+
+
+            } catch (error) {
+
+                console.error(
+                    "❌ Connexion admin :",
+                    error
+                );
+
+
+                if (
+                    error.message ===
+                    "ADMIN_REQUIRED"
+                ) {
+
+                    await supabaseClient.auth.signOut();
+
+                    showAdminLogin(
+                        "Accès refusé : ce compte n'est pas administrateur."
+                    );
+
+                    return;
+                }
+
+
+                showAdminLogin(
+                    error.message ||
+                    "Impossible de se connecter."
+                );
+            }
+
+        }
+    );
+}
+
+
+/* =========================
    DÉCONNEXION
 ========================= */
 
@@ -710,12 +881,18 @@ async function logoutAdmin() {
         await supabaseClient.auth.signOut();
 
     if (error) {
-        console.error(error);
+
+        console.error(
+            "❌ Déconnexion :",
+            error
+        );
+
         return;
     }
 
-    window.location.href =
-        "../connexion.html";
+    showAdminLogin(
+        "Vous êtes déconnecté."
+    );
 }
 
 
@@ -725,49 +902,91 @@ async function logoutAdmin() {
 
 async function initAdminDashboard() {
 
+    if (adminContent) {
+        adminContent.style.display = "none";
+    }
+
+
     try {
 
-        await requireAdmin();
+        const {
+            data: {
+                user
+            },
+            error
+        } =
+            await supabaseClient.auth.getUser();
+
+
+        if (error) {
+            throw error;
+        }
+
+
+        if (!user) {
+
+            showAdminLogin();
+
+            return;
+        }
+
+
+        try {
+
+            await requireAdmin();
+
+        } catch (error) {
+
+            if (
+                error.message ===
+                "ADMIN_REQUIRED"
+            ) {
+
+                await supabaseClient.auth.signOut();
+
+                showAdminLogin(
+                    "Accès refusé : ce compte n'est pas administrateur."
+                );
+
+                return;
+            }
+
+            throw error;
+        }
+
+
+        showAdminContent();
 
         await loadDashboardStats();
+
 
     } catch (error) {
 
         console.error(
-            "Erreur dashboard admin:",
+            "❌ Initialisation admin :",
             error
         );
 
-        if (error.message === "AUTH_REQUIRED") {
 
-            window.location.href =
-                "../connexion.html";
-
-            return;
-        }
-
-        if (error.message === "ADMIN_REQUIRED") {
-
-            alert(
-                "Accès réservé aux administrateurs."
-            );
-
-            window.location.href =
-                "../index.html";
-
-            return;
-        }
-
-        alert(
-            "Impossible de charger le dashboard administrateur."
+        showAdminLogin(
+            error.message ||
+            "Impossible d'initialiser le back-office."
         );
     }
 }
 
 
-document
-    .getElementById("logoutBtn")
-    .addEventListener("click", logoutAdmin);
+const logoutButton =
+    document.getElementById("logoutBtn");
+
+if (logoutButton) {
+
+    logoutButton.addEventListener(
+        "click",
+        logoutAdmin
+    );
+}
+
 
 initAdminDashboard();
 
