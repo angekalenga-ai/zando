@@ -329,7 +329,7 @@
 }
 </style>
 
-</head>
+<style id="zando-professional-design">body{background:#f5f7fb!important;color:#111827}.card{background:#fff!important;border:1px solid #e5e7eb!important;border-radius:16px!important;box-shadow:0 8px 30px rgba(15,23,42,.06)!important}.btn{border-radius:10px!important;font-weight:700!important}.btn.primary{background:#111827!important;color:#fff!important}.btn.secondary{background:#fff!important;color:#111827!important;border:1px solid #e5e7eb!important}input,select,textarea{border:1px solid #e5e7eb!important;border-radius:10px!important;background:#fff!important}input:focus,select:focus,textarea:focus{border-color:#f59e0b!important;box-shadow:0 0 0 3px rgba(245,158,11,.15)!important}thead th{background:#f8fafc!important;color:#64748b!important;font-size:12px!important;font-weight:800!important;text-transform:uppercase;letter-spacing:.04em;padding:14px 16px!important;border-bottom:1px solid #e5e7eb}tbody td{padding:16px!important;border-bottom:1px solid #eef0f4;vertical-align:middle}tbody tr:hover{background:#fffaf0!important}.modal{backdrop-filter:blur(6px);background:rgba(15,23,42,.58)!important}.modal-content,.modal-box{background:#fff!important;border-radius:20px!important;box-shadow:0 25px 80px rgba(15,23,42,.25)!important}@media(max-width:768px){.actions{width:100%;flex-wrap:wrap}.actions .btn{flex:1;min-height:46px}table{min-width:760px}}@media(max-width:480px){h1{font-size:24px!important}h2{font-size:20px!important}.btn{min-height:44px}}</style></head>
 
 <body>
 
@@ -820,6 +820,22 @@ function closeProductModal() {
     }
 }
 
+function showProductMessage(text, type = "success") {
+    const message = document.getElementById("message");
+
+    if (!message) {
+        return;
+    }
+
+    message.textContent = text;
+    message.className = "message " + type;
+    message.style.display = "block";
+
+    setTimeout(() => {
+        message.style.display = "none";
+    }, 3500);
+}
+
 async function saveProduct(event) {
 
     event.preventDefault();
@@ -852,7 +868,7 @@ async function saveProduct(event) {
         document.getElementById("productCategory").value || null;
 
     if (!name || priceValue === "" || !storeId) {
-        alert("Veuillez remplir les champs obligatoires.");
+        showProductMessage("⚠️ Veuillez remplir les champs obligatoires.","error");
         return;
     }
 
@@ -886,6 +902,8 @@ async function saveProduct(event) {
 
     try {
 
+        const wasEditing = Boolean(editingProductId);
+
         let result;
 
         if (editingProductId) {
@@ -911,10 +929,11 @@ async function saveProduct(event) {
 
         await loadProducts();
 
-        alert(
-            editingProductId
-                ? "Produit modifié avec succès."
-                : "Produit ajouté avec succès."
+        showProductMessage(
+            wasEditing
+                ? "✓ Produit modifié avec succès."
+                : "✓ Produit ajouté avec succès.",
+            "success"
         );
 
     } catch (error) {
@@ -924,7 +943,7 @@ async function saveProduct(event) {
             error
         );
 
-        alert(
+        showProductMessage(
             "Impossible d'enregistrer le produit : " +
             (error.message || "Erreur inconnue")
         );
@@ -1224,7 +1243,7 @@ async function deleteProduct(id) {
 
         await loadProducts();
 
-        alert("Produit supprimé avec succès.");
+        showProductMessage("✓ Produit supprimé avec succès.","success");
 
     } catch (error) {
 
@@ -1233,7 +1252,7 @@ async function deleteProduct(id) {
             error
         );
 
-        alert(
+        showProductMessage(
             "Impossible de supprimer le produit : " +
             (error.message || "Erreur inconnue")
         );
