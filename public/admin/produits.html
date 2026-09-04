@@ -248,6 +248,87 @@
             }
         }
     </style>
+
+<style>
+.product-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.65);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+}
+
+.product-modal.active {
+    display: flex;
+}
+
+.product-modal-card {
+    width: min(620px, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    background: #fff;
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+}
+
+.product-modal-card h2 {
+    margin-top: 0;
+}
+
+.product-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.product-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.product-form-group.full {
+    grid-column: 1 / -1;
+}
+
+.product-form-group input,
+.product-form-group textarea,
+.product-form-group select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 11px 12px;
+    border: 1px solid #ddd;
+    border-radius: 9px;
+    font: inherit;
+}
+
+.product-form-group textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.product-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+@media (max-width: 600px) {
+    .product-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .product-form-group.full {
+        grid-column: auto;
+    }
+}
+</style>
+
 </head>
 
 <body>
@@ -413,6 +494,82 @@
 
 </main>
 
+<div id="productModal" class="product-modal">
+    <div class="product-modal-card">
+        <h2 id="productModalTitle">Ajouter un produit</h2>
+
+        <form id="productForm">
+            <div class="product-form-grid">
+
+                <div class="product-form-group full">
+                    <label for="productName">Nom du produit *</label>
+                    <input id="productName" type="text" required>
+                </div>
+
+                <div class="product-form-group full">
+                    <label for="productDescription">Description</label>
+                    <textarea id="productDescription"></textarea>
+                </div>
+
+                <div class="product-form-group">
+                    <label for="productPrice">Prix *</label>
+                    <input id="productPrice" type="number" min="0" step="0.01" required>
+                </div>
+
+                <div class="product-form-group">
+                    <label for="productComparePrice">Prix barré</label>
+                    <input id="productComparePrice" type="number" min="0" step="0.01">
+                </div>
+
+                <div class="product-form-group">
+                    <label for="productCurrency">Devise *</label>
+                    <select id="productCurrency">
+                        <option value="USD">USD</option>
+                        <option value="CDF">CDF</option>
+                        <option value="EUR">EUR</option>
+                    </select>
+                </div>
+
+                <div class="product-form-group">
+                    <label for="productStock">Stock *</label>
+                    <input id="productStock" type="number" min="0" step="1" required>
+                </div>
+
+                <div class="product-form-group">
+                    <label for="productStatus">Statut *</label>
+                    <select id="productStatus">
+                        <option value="draft">Brouillon</option>
+                        <option value="active">Actif</option>
+                    </select>
+                </div>
+
+                <div class="product-form-group">
+                    <label for="productStore">Boutique *</label>
+                    <select id="productStore" required></select>
+                </div>
+
+                <div class="product-form-group">
+                    <label for="productCategory">Catégorie</label>
+                    <select id="productCategory">
+                        <option value="">Aucune catégorie</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="product-modal-actions">
+                <button type="button" class="btn secondary" id="cancelProductBtn">
+                    Annuler
+                </button>
+
+                <button type="submit" class="btn primary">
+                    Enregistrer
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 
 const SUPABASE_URL =
@@ -528,6 +685,241 @@ async function requireAdmin() {
     }
 
     return user;
+}
+
+
+let stores = [];
+let categories = [];
+let editingProductId = null;
+
+async function loadStoresAndCategories() {
+
+    const storesResult = await supabaseClient
+        .from("stores")
+        .select("id, name, status")
+        .order("name", { ascending: true });
+
+    if (storesResult.error) {
+        throw storesResult.error;
+    }
+
+    stores = storesResult.data || [];
+
+    const categoriesResult = await supabaseClient
+        .from("categories")
+        .select("id, name")
+        .order("name", { ascending: true });
+
+    if (categoriesResult.error) {
+        throw categoriesResult.error;
+    }
+
+    categories = categoriesResult.data || [];
+
+    const storeSelect =
+        document.getElementById("productStore");
+
+    const categorySelect =
+        document.getElementById("productCategory");
+
+    if (storeSelect) {
+        storeSelect.innerHTML =
+            '<option value="">Sélectionner une boutique</option>' +
+            stores.map(store =>
+                `<option value="${store.id}">
+                    ${escapeHtml(store.name)}
+                </option>`
+            ).join("");
+    }
+
+    if (categorySelect) {
+        categorySelect.innerHTML =
+            '<option value="">Aucune catégorie</option>' +
+            categories.map(category =>
+                `<option value="${category.id}">
+                    ${escapeHtml(category.name)}
+                </option>`
+            ).join("");
+    }
+}
+
+function openProductModal(product = null) {
+
+    const modal =
+        document.getElementById("productModal");
+
+    const title =
+        document.getElementById("productModalTitle");
+
+    if (!modal) return;
+
+    editingProductId = product?.id || null;
+
+    if (title) {
+        title.textContent =
+            product
+                ? "Modifier le produit"
+                : "Ajouter un produit";
+    }
+
+    document.getElementById("productName").value =
+        product?.name || "";
+
+    document.getElementById("productDescription").value =
+        product?.description || "";
+
+    document.getElementById("productPrice").value =
+        product?.price ?? "";
+
+    document.getElementById("productComparePrice").value =
+        product?.compare_at_price ?? "";
+
+    document.getElementById("productCurrency").value =
+        product?.currency || "USD";
+
+    document.getElementById("productStock").value =
+        product?.stock_quantity ?? 0;
+
+    document.getElementById("productStatus").value =
+        product?.status || "draft";
+
+    document.getElementById("productStore").value =
+        product?.store_id || "";
+
+    document.getElementById("productCategory").value =
+        product?.category_id || "";
+
+    modal.classList.add("active");
+}
+
+function closeProductModal() {
+
+    const modal =
+        document.getElementById("productModal");
+
+    if (modal) {
+        modal.classList.remove("active");
+    }
+
+    editingProductId = null;
+
+    const form =
+        document.getElementById("productForm");
+
+    if (form) {
+        form.reset();
+    }
+}
+
+async function saveProduct(event) {
+
+    event.preventDefault();
+
+    const name =
+        document.getElementById("productName").value.trim();
+
+    const description =
+        document.getElementById("productDescription").value.trim();
+
+    const priceValue =
+        document.getElementById("productPrice").value;
+
+    const comparePriceValue =
+        document.getElementById("productComparePrice").value;
+
+    const currency =
+        document.getElementById("productCurrency").value;
+
+    const stock =
+        Number(document.getElementById("productStock").value);
+
+    const status =
+        document.getElementById("productStatus").value;
+
+    const storeId =
+        document.getElementById("productStore").value;
+
+    const categoryId =
+        document.getElementById("productCategory").value || null;
+
+    if (!name || priceValue === "" || !storeId) {
+        alert("Veuillez remplir les champs obligatoires.");
+        return;
+    }
+
+    const price = Number(priceValue);
+
+    const compareAtPrice =
+        comparePriceValue === ""
+            ? null
+            : Number(comparePriceValue);
+
+    const slug =
+        name
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, "");
+
+    const payload = {
+        name,
+        slug,
+        description: description || null,
+        price,
+        compare_at_price: compareAtPrice,
+        currency,
+        stock_quantity: stock,
+        status,
+        store_id: storeId,
+        category_id: categoryId
+    };
+
+    try {
+
+        let result;
+
+        if (editingProductId) {
+
+            result = await supabaseClient
+                .from("products")
+                .update(payload)
+                .eq("id", editingProductId);
+
+        } else {
+
+            result = await supabaseClient
+                .from("products")
+                .insert(payload);
+
+        }
+
+        if (result.error) {
+            throw result.error;
+        }
+
+        closeProductModal();
+
+        await loadProducts();
+
+        alert(
+            editingProductId
+                ? "Produit modifié avec succès."
+                : "Produit ajouté avec succès."
+        );
+
+    } catch (error) {
+
+        console.error(
+            "❌ Erreur enregistrement produit :",
+            error
+        );
+
+        alert(
+            "Impossible d'enregistrer le produit : " +
+            (error.message || "Erreur inconnue")
+        );
+    }
 }
 
 async function loadProducts() {
@@ -785,11 +1177,7 @@ function editProduct(id) {
         return;
     }
 
-    alert(
-        "Édition du produit : " +
-        product.name +
-        "\n\nLe formulaire d'édition sera activé à l'étape suivante."
-    );
+    openProductModal(product);
 
 }
 
@@ -813,9 +1201,34 @@ async function deleteProduct(id) {
         return;
     }
 
-    alert(
-        "La suppression sera activée après validation des permissions administrateur."
-    );
+    try {
+
+        const { error } =
+            await supabaseClient
+                .from("products")
+                .delete()
+                .eq("id", id);
+
+        if (error) {
+            throw error;
+        }
+
+        await loadProducts();
+
+        alert("Produit supprimé avec succès.");
+
+    } catch (error) {
+
+        console.error(
+            "❌ Erreur suppression produit :",
+            error
+        );
+
+        alert(
+            "Impossible de supprimer le produit : " +
+            (error.message || "Erreur inconnue")
+        );
+    }
 
 }
 
@@ -824,6 +1237,8 @@ async function init() {
     try {
 
         await requireAdmin();
+
+        await loadStoresAndCategories();
 
         await loadProducts();
 
@@ -896,17 +1311,41 @@ document
     .addEventListener(
         "click",
         function () {
+            openProductModal();
+        }
+    );
 
-            alert(
-                "Le formulaire d'ajout sera activé à l'étape suivante."
-            );
+document
+    .getElementById("productForm")
+    .addEventListener(
+        "submit",
+        saveProduct
+    );
 
+document
+    .getElementById("cancelProductBtn")
+    .addEventListener(
+        "click",
+        closeProductModal
+    );
+
+document
+    .getElementById("productModal")
+    .addEventListener(
+        "click",
+        function (event) {
+            if (event.target === this) {
+                closeProductModal();
+            }
         }
     );
 
 init();
 
 </script>
+
+
+
 
 </body>
 </html>
