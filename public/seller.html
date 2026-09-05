@@ -726,34 +726,36 @@ if (productCategorySelect) {
 
 async function loadProducts() {
 
-    const {
-        data,
-        error
-    } =
-        await supabaseClient
-            .from("products")
-            .select(`
-                id,
-                name,
-                slug,
-                description,
-                price,
-                compare_at_price,
-                currency,
-                stock_quantity,
-                status,
-                category_id
-            `)
-            .eq(
-                "store_id",
-                currentStore.id
-            )
-            .order(
-                "created_at",
-                {
-                    ascending: false
-                }
-            );
+    document.getElementById("loading").textContent =
+        "Connexion à la base des produits...";
+
+    console.log("Début chargement produits", currentStore.id);
+
+    const result = await supabaseClient
+        .from("products")
+        .select(`
+            id,
+            name,
+            slug,
+            description,
+            price,
+            compare_at_price,
+            currency,
+            stock_quantity,
+            status,
+            category_id
+        `)
+        .eq("store_id", currentStore.id)
+        .order("created_at", {
+            ascending: false
+        });
+
+    document.getElementById("loading").textContent =
+        "Réponse de la base reçue...";
+
+    console.log("Résultat produits :", result);
+
+    const { data, error } = result;
 
     if (error) {
         throw error;
@@ -761,18 +763,16 @@ async function loadProducts() {
 
     products = data || [];
 
-    document
-        .getElementById("statProducts")
-        .textContent =
-            products.length;
+    document.getElementById("statProducts").textContent =
+        products.length;
 
-    document
-        .getElementById("statActiveProducts")
-        .textContent =
-            products.filter(
-                product =>
-                    product.status === "active"
-            ).length;
+    document.getElementById("statActiveProducts").textContent =
+        products.filter(
+            product => product.status === "active"
+        ).length;
+
+    document.getElementById("loading").textContent =
+        "Affichage des produits...";
 
     renderProducts();
 
