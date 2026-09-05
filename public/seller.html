@@ -1139,6 +1139,16 @@ async function init() {
         document.getElementById("loading").textContent =
             "Vérification du compte...";
 
+        const sessionCheck = await supabaseClient.auth.getSession();
+
+        if (sessionCheck.error) {
+            throw sessionCheck.error;
+        }
+
+        if (!sessionCheck.data.session) {
+            throw new Error("SESSION_ABSENTE_DANS_SELLER");
+        }
+
         await requireSeller();
 
         document.getElementById("loading").textContent =
