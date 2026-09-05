@@ -1127,23 +1127,36 @@ async function init() {
 
     try {
 
-        document
-            .getElementById("error")
-            .style.display = "none";
+        document.getElementById("error").style.display = "none";
+
+        document.getElementById("loading").textContent =
+            "Vérification du compte...";
 
         await requireSeller();
 
+        document.getElementById("loading").textContent =
+            "Chargement de la boutique...";
+
         await loadStore();
+
+        document.getElementById("loading").textContent =
+            "Chargement des catégories...";
 
         await loadCategories();
 
+        document.getElementById("loading").textContent =
+            "Chargement des produits...";
+
         await loadProducts();
 
-        hideLoading();
+        document.getElementById("loading").textContent =
+            "Affichage de votre espace vendeur...";
 
         document
             .getElementById("sellerContent")
             .style.display = "block";
+
+        hideLoading();
 
     } catch (error) {
 
@@ -1154,37 +1167,14 @@ async function init() {
 
         hideLoading();
 
-        const authMissing =
-            error?.name === "AuthSessionMissingError" ||
-            error?.message === "Auth session missing!" ||
-            error?.message === "Auth session missing";
+        const message =
+            error?.message ||
+            String(error) ||
+            "Impossible de charger l'espace vendeur.";
 
-        if (authMissing) {
-
-            window.location.href =
-                "index.html";
-
-            return;
-
-        }
-
-        if (
-            error.message ===
-            "SELLER_REQUIRED"
-        ) {
-
-            showError(
-                "Accès refusé : ce compte n'est pas vendeur."
-            );
-
-        } else {
-
-            showError(
-                error.message ||
-                "Impossible de charger l'espace vendeur."
-            );
-
-        }
+        showError(
+            "Erreur de chargement : " + message
+        );
 
     }
 
