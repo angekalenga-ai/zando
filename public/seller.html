@@ -768,10 +768,7 @@ async function loadProducts() {
         }, 15000);
     });
 
-    const result = await Promise.race([
-        productsPromise,
-        timeoutPromise
-    ]);
+    const result = await productsPromise;
 
     document.getElementById("loading").textContent =
         "PRODUITS : réponse reçue !";
