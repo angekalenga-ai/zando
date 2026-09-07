@@ -738,7 +738,7 @@ async function loadProducts() {
 
     console.log("Début chargement produits", currentStore.id);
 
-    const productsPromise = supabaseClient
+    const result = await supabaseClient
         .from("products")
         .select(`
             id,
@@ -757,21 +757,8 @@ async function loadProducts() {
             ascending: false
         });
 
-    document.getElementById("loading").textContent = "REQUETE CREEE";
-    const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => {
-            reject(
-                new Error(
-                    "TIMEOUT_PRODUITS : Supabase ne répond pas après 15 secondes."
-                )
-            );
-        }, 15000);
-    });
-
-    const result = await productsPromise;
-
     document.getElementById("loading").textContent =
-        "PRODUITS : réponse reçue !";
+        "Réponse de la base reçue...";
 
     console.log("Résultat produits :", result);
 
@@ -794,9 +781,10 @@ async function loadProducts() {
     document.getElementById("loading").textContent =
         "Affichage des produits...";
 
-    document.getElementById("loading").textContent = "renderProducts va démarrer..."; renderProducts();
+    renderProducts();
 
 }
+
 
 function renderProducts() {
 
