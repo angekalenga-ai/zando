@@ -474,7 +474,6 @@ th {
 </main>
 
 <script>
-document.body.insertAdjacentHTML("afterbegin",'<div id="jsTest" style="position:fixed;top:0;left:0;right:0;z-index:99999;background:red;color:white;padding:15px;text-align:center">JS SELLER OK</div>');
 
 const SUPABASE_URL =
     "https://kcrliiinrjlrcspnaeac.supabase.co";
@@ -733,14 +732,12 @@ if (productCategorySelect) {
 }
 
 async function loadProducts() {
-    document.getElementById("loading").textContent = "LOADPRODUCTS DEBUT";
 
     document.getElementById("loading").textContent =
         "Connexion à la base des produits...";
 
     console.log("Début chargement produits", currentStore.id);
-    document.getElementById("loading").textContent = "AVANT REQUETE PRODUITS";
-    setTimeout(() => { document.getElementById("loading").textContent = "TEST TIMER OK"; }, 3000);
+
     const productsPromise = supabaseClient
         .from("products")
         .select(`
@@ -760,6 +757,7 @@ async function loadProducts() {
             ascending: false
         });
 
+    document.getElementById("loading").textContent = "REQUETE CREEE";
     const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
             reject(
