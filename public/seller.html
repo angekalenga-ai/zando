@@ -733,12 +733,13 @@ if (productCategorySelect) {
 }
 
 async function loadProducts() {
+    document.getElementById("loading").textContent = "LOADPRODUCTS DEBUT";
 
     document.getElementById("loading").textContent =
         "Connexion à la base des produits...";
 
     console.log("Début chargement produits", currentStore.id);
-
+    document.getElementById("loading").textContent = "AVANT REQUETE PRODUITS";
     setTimeout(() => { document.getElementById("loading").textContent = "TEST TIMER OK"; }, 3000);
     const productsPromise = supabaseClient
         .from("products")
