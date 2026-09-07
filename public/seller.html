@@ -738,6 +738,7 @@ async function loadProducts() {
 
     console.log("Début chargement produits", currentStore.id);
 
+    setTimeout(() => { document.getElementById("loading").textContent = "TEST TIMER OK"; }, 3000);
     const productsPromise = supabaseClient
         .from("products")
         .select(`
