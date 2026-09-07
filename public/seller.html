@@ -738,7 +738,7 @@ async function loadProducts() {
 
     console.log("Début chargement produits", currentStore.id);
 
-    const result = await supabaseClient
+    const productsPromise = supabaseClient
         .from("products")
         .select(`
             id,
@@ -756,6 +756,21 @@ async function loadProducts() {
         .order("created_at", {
             ascending: false
         });
+
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+            reject(
+                new Error(
+                    "TIMEOUT_PRODUITS : Supabase ne répond pas après 15 secondes."
+                )
+            );
+        }, 15000);
+    });
+
+    const result = await Promise.race([
+        productsPromise,
+        timeoutPromise
+    ]);
 
     document.getElementById("loading").textContent =
         "PRODUITS : réponse reçue !";
