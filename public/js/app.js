@@ -1564,6 +1564,15 @@ function showAccountView(email, name, phone, role) {
             💾 Enregistrer les modifications
         </button>
 
+
+        <button
+            class="btn btn-primary"
+            style="width:100%; margin-top:10px;"
+            onclick="showAddressManager()"
+        >
+            📍 Mes adresses
+        </button>
+
         <button
             class="btn btn-primary"
             style="width:100%; margin-top:10px;"
@@ -1582,6 +1591,731 @@ function showAccountView(email, name, phone, role) {
     `);
 
 }
+
+
+/* =====================================================
+   CUSTOMER ADDRESSES
+===================================================== */
+
+
+async function showAddressManager() {
+
+    showModal(`
+        <h2>Mes adresses 📍</h2>
+
+        <p style="color:#64748b;">
+            Gérez vos adresses de livraison.
+        </p>
+
+        <div id="addressesMessage" style="margin-top:12px;"></div>
+
+        <div
+            id="addressesList"
+            style="margin-top:16px;"
+        >
+            Chargement...
+        </div>
+
+        <button
+            class="btn btn-primary"
+            style="width:100%; margin-top:16px;"
+            onclick="showAddressForm()"
+        >
+            ➕ Ajouter une adresse
+        </button>
+
+        <button
+            class="btn btn-primary"
+            style="width:100%; margin-top:10px;"
+            onclick="closeModal()"
+        >
+            Fermer
+        </button>
+    `);
+
+    await loadAddresses();
+
+}
+
+
+async function loadAddresses() {
+
+    const container =
+        document.getElementById("addressesList");
+
+    const message =
+        document.getElementById("addressesMessage");
+
+    if (!container) return;
+
+    container.innerHTML = "Chargement...";
+
+    try {
+
+        const user = await getCurrentUser();
+
+        if (!user) {
+            throw new Error("Vous devez être connecté.");
+        }
+
+        const {
+            data,
+            error
+        } = await supabaseClient
+            .from("addresses")
+            .select(`
+                id,
+                full_name,
+                phone,
+                address_line1,
+                address_line2,
+                city,
+                region,
+                country,
+                postal_code,
+                is_default
+            `)
+            .eq("user_id", user.id)
+            .order("is_default", { ascending: false })
+            .order("created_at", { ascending: false });
+
+        if (error) {
+            throw error;
+        }
+
+        if (!data || data.length === 0) {
+
+            container.innerHTML = `
+                <div style="
+                    padding:18px;
+                    text-align:center;
+                    background:#f8fafc;
+                    border-radius:12px;
+                    color:#64748b;
+                ">
+                    <div style="font-size:30px;">📍</div>
+                    <p style="margin:8px 0 0;">
+                        Vous n'avez encore aucune adresse.
+                    </p>
+                </div>
+            `;
+
+            return;
+        }
+
+        container.innerHTML = data.map(address => {
+
+            const fullAddress = [
+                address.address_line1,
+                address.address_line2,
+                address.city,
+                address.region,
+                address.postal_code
+            ]
+                .filter(Boolean)
+                .join(", ");
+
+            return `
+                <div style="
+                    padding:16px;
+                    margin-bottom:12px;
+                    border:1px solid ${address.is_default ? "#2563eb" : "#e2e8f0"};
+                    border-radius:12px;
+                    background:${address.is_default ? "#eff6ff" : "#ffffff"};
+                ">
+
+                    <div style="
+                        display:flex;
+                        justify-content:space-between;
+                        gap:10px;
+                        align-items:flex-start;
+                    ">
+
+                        <strong>
+                            ${escapeHTML(address.full_name || "")}
+                        </strong>
+
+                        ${
+                            address.is_default
+                                ? `
+                                    <span style="
+                                        background:#dbeafe;
+                                        color:#1d4ed8;
+                                        padding:4px 8px;
+                                        border-radius:999px;
+                                        font-size:12px;
+                                        font-weight:700;
+                                    ">
+                                        Adresse par défaut
+                                    </span>
+                                `
+                                : ""
+                        }
+
+                    </div>
+
+                    <div style="
+                        margin-top:8px;
+                        color:#475569;
+                        line-height:1.5;
+                    ">
+                        📞 ${escapeHTML(address.phone || "")}<br>
+                        📍 ${escapeHTML(fullAddress)}
+                    </div>
+
+                    <div style="
+                        display:flex;
+                        gap:8px;
+                        margin-top:14px;
+                        flex-wrap:wrap;
+                    ">
+
+                        <button
+                            class="btn btn-primary"
+                            onclick='showAddressForm(${JSON.stringify(address).replace(/'/g, "&#39;")})'
+                        >
+                            ✏️ Modifier
+                        </button>
+
+                        ${
+                            !address.is_default
+                                ? `
+                                    <button
+                                        class="btn btn-primary"
+                                        onclick="setDefaultAddress('${address.id}')"
+                                    >
+                                        ⭐ Par défaut
+                                    </button>
+                                `
+                                : ""
+                        }
+
+                        <button
+                            class="btn btn-primary"
+                            onclick="deleteAddress('${address.id}')"
+                        >
+                            🗑️ Supprimer
+                        </button>
+
+                    </div>
+
+                </div>
+            `;
+
+        }).join("");
+
+    } catch (error) {
+
+        console.error(
+            "❌ Erreur chargement adresses :",
+            error
+        );
+
+        container.innerHTML = `
+            <p style="color:#dc2626;">
+                ❌ ${escapeHTML(
+                    error.message ||
+                    "Impossible de charger vos adresses."
+                )}
+            </p>
+        `;
+
+        if (message) {
+            message.textContent = "";
+        }
+
+    }
+
+}
+
+
+function showAddressForm(address = null) {
+
+    const isEdit = Boolean(address);
+
+    showModal(`
+        <h2>
+            ${isEdit ? "Modifier l'adresse ✏️" : "Ajouter une adresse 📍"}
+        </h2>
+
+        <p style="color:#64748b;">
+            ${
+                isEdit
+                    ? "Modifiez les informations de cette adresse."
+                    : "Ajoutez une adresse pour vos prochaines livraisons."
+            }
+        </p>
+
+        <div style="
+            margin-top:18px;
+            padding:16px;
+            background:#f8fafc;
+            border-radius:12px;
+        ">
+
+            <label style="display:block; font-weight:700; margin-bottom:6px;">
+                Nom complet
+            </label>
+
+            <input
+                type="text"
+                id="addressFullName"
+                value="${escapeHTML(address?.full_name || "")}"
+                placeholder="Nom du destinataire"
+                style="
+                    width:100%;
+                    box-sizing:border-box;
+                    padding:12px;
+                    border:1px solid #d1d5db;
+                    border-radius:9px;
+                    margin-bottom:14px;
+                "
+            >
+
+            <label style="display:block; font-weight:700; margin-bottom:6px;">
+                Téléphone
+            </label>
+
+            <input
+                type="tel"
+                id="addressPhone"
+                value="${escapeHTML(address?.phone || "")}"
+                placeholder="+243 8XX XXX XXX"
+                style="
+                    width:100%;
+                    box-sizing:border-box;
+                    padding:12px;
+                    border:1px solid #d1d5db;
+                    border-radius:9px;
+                    margin-bottom:14px;
+                "
+            >
+
+            <label style="display:block; font-weight:700; margin-bottom:6px;">
+                Adresse
+            </label>
+
+            <input
+                type="text"
+                id="addressLine1"
+                value="${escapeHTML(address?.address_line1 || "")}"
+                placeholder="Avenue, numéro, quartier..."
+                style="
+                    width:100%;
+                    box-sizing:border-box;
+                    padding:12px;
+                    border:1px solid #d1d5db;
+                    border-radius:9px;
+                    margin-bottom:14px;
+                "
+            >
+
+            <label style="display:block; font-weight:700; margin-bottom:6px;">
+                Complément d'adresse
+            </label>
+
+            <input
+                type="text"
+                id="addressLine2"
+                value="${escapeHTML(address?.address_line2 || "")}"
+                placeholder="Référence, bâtiment, commune..."
+                style="
+                    width:100%;
+                    box-sizing:border-box;
+                    padding:12px;
+                    border:1px solid #d1d5db;
+                    border-radius:9px;
+                    margin-bottom:14px;
+                "
+            >
+
+            <label style="display:block; font-weight:700; margin-bottom:6px;">
+                Ville
+            </label>
+
+            <input
+                type="text"
+                id="addressCity"
+                value="${escapeHTML(address?.city || "")}"
+                placeholder="Kinshasa"
+                style="
+                    width:100%;
+                    box-sizing:border-box;
+                    padding:12px;
+                    border:1px solid #d1d5db;
+                    border-radius:9px;
+                    margin-bottom:14px;
+                "
+            >
+
+            <label style="display:block; font-weight:700; margin-bottom:6px;">
+                Région / Province
+            </label>
+
+            <input
+                type="text"
+                id="addressRegion"
+                value="${escapeHTML(address?.region || "")}"
+                placeholder="Kinshasa"
+                style="
+                    width:100%;
+                    box-sizing:border-box;
+                    padding:12px;
+                    border:1px solid #d1d5db;
+                    border-radius:9px;
+                    margin-bottom:14px;
+                "
+            >
+
+            <label style="display:block; font-weight:700; margin-bottom:6px;">
+                Code postal
+            </label>
+
+            <input
+                type="text"
+                id="addressPostalCode"
+                value="${escapeHTML(address?.postal_code || "")}"
+                placeholder="Optionnel"
+                style="
+                    width:100%;
+                    box-sizing:border-box;
+                    padding:12px;
+                    border:1px solid #d1d5db;
+                    border-radius:9px;
+                    margin-bottom:14px;
+                "
+            >
+
+            <label style="
+                display:flex;
+                align-items:center;
+                gap:8px;
+                font-weight:700;
+            ">
+                <input
+                    type="checkbox"
+                    id="addressDefault"
+                    ${address?.is_default ? "checked" : ""}
+                >
+                Définir comme adresse par défaut
+            </label>
+
+        </div>
+
+        <p id="addressFormMessage" style="margin-top:12px;"></p>
+
+        <button
+            class="btn btn-primary"
+            style="width:100%; margin-top:8px;"
+            onclick="saveAddress(${address ? `'${address.id}'` : "null"})"
+        >
+            💾 Enregistrer l'adresse
+        </button>
+
+        <button
+            class="btn btn-primary"
+            style="width:100%; margin-top:10px;"
+            onclick="showAddressManager()"
+        >
+            ← Retour à mes adresses
+        </button>
+    `);
+
+}
+
+
+async function saveAddress(addressId = null) {
+
+    const message =
+        document.getElementById("addressFormMessage");
+
+    const fullName =
+        document.getElementById("addressFullName")?.value.trim();
+
+    const phone =
+        document.getElementById("addressPhone")?.value.trim();
+
+    const addressLine1 =
+        document.getElementById("addressLine1")?.value.trim();
+
+    const addressLine2 =
+        document.getElementById("addressLine2")?.value.trim();
+
+    const city =
+        document.getElementById("addressCity")?.value.trim();
+
+    const region =
+        document.getElementById("addressRegion")?.value.trim();
+
+    const postalCode =
+        document.getElementById("addressPostalCode")?.value.trim();
+
+    const isDefault =
+        document.getElementById("addressDefault")?.checked || false;
+
+    if (!fullName || !phone || !addressLine1 || !city) {
+
+        if (message) {
+            message.textContent =
+                "❌ Le nom, le téléphone, l'adresse et la ville sont obligatoires.";
+        }
+
+        return;
+    }
+
+    if (message) {
+        message.textContent =
+            "Enregistrement en cours...";
+    }
+
+    try {
+
+        const user = await getCurrentUser();
+
+        if (!user) {
+            throw new Error("Vous devez être connecté.");
+        }
+
+        const payload = {
+            user_id: user.id,
+            full_name: fullName,
+            phone: phone,
+            address_line1: addressLine1,
+            address_line2: addressLine2 || null,
+            city: city,
+            region: region || null,
+            country: "CD",
+            postal_code: postalCode || null,
+            is_default: isDefault
+        };
+
+        /*
+         * Si cette adresse devient l'adresse par défaut,
+         * on retire d'abord ce statut aux autres adresses.
+         */
+        if (isDefault) {
+
+            const {
+                error: defaultError
+            } = await supabaseClient
+                .from("addresses")
+                .update({
+                    is_default: false
+                })
+                .eq("user_id", user.id);
+
+            if (defaultError) {
+                throw defaultError;
+            }
+
+        }
+
+        let result;
+
+        if (addressId) {
+
+            result = await supabaseClient
+                .from("addresses")
+                .update(payload)
+                .eq("id", addressId)
+                .eq("user_id", user.id);
+
+        } else {
+
+            result = await supabaseClient
+                .from("addresses")
+                .insert(payload);
+
+        }
+
+        if (result.error) {
+            throw result.error;
+        }
+
+        showAddressManager();
+
+    } catch (error) {
+
+        console.error(
+            "❌ Erreur enregistrement adresse :",
+            error
+        );
+
+        if (message) {
+            message.textContent =
+                "❌ " + (
+                    error.message ||
+                    "Impossible d'enregistrer cette adresse."
+                );
+        }
+
+    }
+
+}
+
+
+async function setDefaultAddress(addressId) {
+
+    try {
+
+        const user = await getCurrentUser();
+
+        if (!user) {
+            throw new Error("Vous devez être connecté.");
+        }
+
+        const {
+            error: resetError
+        } = await supabaseClient
+            .from("addresses")
+            .update({
+                is_default: false
+            })
+            .eq("user_id", user.id);
+
+        if (resetError) {
+            throw resetError;
+        }
+
+        const {
+            error
+        } = await supabaseClient
+            .from("addresses")
+            .update({
+                is_default: true
+            })
+            .eq("id", addressId)
+            .eq("user_id", user.id);
+
+        if (error) {
+            throw error;
+        }
+
+        await loadAddresses();
+
+    } catch (error) {
+
+        console.error(
+            "❌ Erreur adresse par défaut :",
+            error
+        );
+
+        const message =
+            document.getElementById("addressesMessage");
+
+        if (message) {
+            message.textContent =
+                "❌ " + (
+                    error.message ||
+                    "Impossible de définir cette adresse par défaut."
+                );
+        }
+
+    }
+
+}
+
+
+async function deleteAddress(addressId) {
+
+    showModal(`
+        <h2>Supprimer cette adresse ? 🗑️</h2>
+
+        <p style="
+            color:#64748b;
+            line-height:1.5;
+        ">
+            Cette adresse sera définitivement supprimée de votre compte.
+        </p>
+
+        <div style="
+            display:flex;
+            gap:10px;
+            margin-top:20px;
+        ">
+
+            <button
+                class="btn btn-primary"
+                style="flex:1;"
+                onclick="showAddressManager()"
+            >
+                Annuler
+            </button>
+
+            <button
+                class="btn btn-primary"
+                style="
+                    flex:1;
+                    background:#dc2626;
+                    border-color:#dc2626;
+                "
+                onclick="confirmDeleteAddress('${addressId}')"
+            >
+                🗑️ Supprimer
+            </button>
+
+        </div>
+    `);
+
+}
+
+
+async function confirmDeleteAddress(addressId) {
+
+    try {
+
+        const user = await getCurrentUser();
+
+        if (!user) {
+            throw new Error("Vous devez être connecté.");
+        }
+
+        const {
+            error
+        } = await supabaseClient
+            .from("addresses")
+            .delete()
+            .eq("id", addressId)
+            .eq("user_id", user.id);
+
+        if (error) {
+            throw error;
+        }
+
+        showAddressManager();
+
+    } catch (error) {
+
+        console.error(
+            "❌ Erreur suppression adresse :",
+            error
+        );
+
+        showModal(`
+            <h2>Erreur</h2>
+
+            <p style="color:#dc2626;">
+                ❌ ${escapeHTML(
+                    error.message ||
+                    "Impossible de supprimer cette adresse."
+                )}
+            </p>
+
+            <button
+                class="btn btn-primary"
+                style="width:100%; margin-top:15px;"
+                onclick="showAddressManager()"
+            >
+                Fermer
+            </button>
+        `);
+
+    }
+
+}
+
+
+
 
 
 async function saveAccountProfile() {
