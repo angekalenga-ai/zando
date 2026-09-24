@@ -281,6 +281,11 @@ th {
         min-width: 650px;
     }
 }
+
+
+
+
+
 </style>
 </head>
 
@@ -352,6 +357,7 @@ th {
 <input id="productImage" type="file" accept="image/jpeg,image/png,image/webp">
 <button type="submit" class="btn primary">Enregistrer</button>
 <button type="button" class="btn secondary" id="cancelProductBtn">Annuler</button>
+</div>
 </form>
 </div>
 
@@ -469,6 +475,36 @@ th {
 
         </section>
 
+        <section class="card" id="sellerOrdersSection">
+            <div class="actions" style="justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                <h2 style="margin:0;">📦 Mes commandes</h2>
+                <button class="btn secondary" id="refreshOrdersBtn" type="button">🔄 Actualiser les commandes</button>
+            </div>
+
+            <div id="ordersMessage" style="margin:15px 0;color:#64748b;">Chargement des commandes...</div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Commande</th>
+                            <th>Date</th>
+                            <th>Produits</th>
+                            <th>Montant</th>
+                            <th>Commande</th>
+                            <th>Paiement</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersBody">
+                        <tr>
+                            <td colspan="7" class="empty">Chargement...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
     </section>
 
 </main>
@@ -521,6 +557,52 @@ function showError(message) {
 
     box.style.display = "block";
 
+}
+
+async function confirmDeleteProduct() {
+    return new Promise(resolve => {
+        const overlay = document.createElement("div");
+        overlay.style.cssText = "position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:20px;z-index:10000;";
+
+        const box = document.createElement("div");
+        box.style.cssText = "width:100%;max-width:420px;background:#fff;border-radius:16px;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,.25);font-family:Arial,sans-serif;";
+
+        box.innerHTML = `<div style="font-size:42px;text-align:center;margin-bottom:12px;">🗑️</div><h3 style="margin:0 0 10px;text-align:center;color:#0f172a;font-size:20px;">Supprimer le produit ?</h3><p style="margin:0 0 22px;text-align:center;color:#64748b;line-height:1.5;">Cette action supprimera définitivement ce produit de votre boutique.</p><div style="display:flex;gap:10px;"><button id="cancelDelete" style="flex:1;padding:12px;border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:10px;font-weight:600;cursor:pointer;">Annuler</button><button id="confirmDelete" style="flex:1;padding:12px;border:0;background:#dc2626;color:#fff;border-radius:10px;font-weight:600;cursor:pointer;">Supprimer</button></div>`;
+
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+
+        const close = result => {
+            overlay.remove();
+            resolve(result);
+        };
+
+        document.getElementById("cancelDelete").onclick = () => close(false);
+        document.getElementById("confirmDelete").onclick = () => close(true);
+
+        overlay.onclick = event => {
+            if (event.target === overlay) close(false);
+        };
+    });
+}
+
+function showSuccess(message) {
+    let box = document.getElementById("success");
+
+    if (!box) {
+        box = document.createElement("div");
+        box.id = "success";
+        box.style.cssText = "position:fixed;top:90px;right:20px;z-index:9999;padding:14px 18px;background:#16a34a;color:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);font-size:15px;font-weight:600;max-width:calc(100% - 40px);";
+        document.body.appendChild(box);
+    }
+
+    box.textContent = message || "Opération réussie.";
+    box.style.display = "block";
+
+    clearTimeout(box._timer);
+    box._timer = setTimeout(() => {
+        box.style.display = "none";
+    }, 3000);
 }
 
 function hideLoading() {
@@ -729,6 +811,219 @@ if (productCategorySelect) {
     productCategorySelect.addEventListener("change", function () {
         loadSubcategories(this.value);
     });
+}
+
+async function loadSellerOrders() {
+    const message = document.getElementById("ordersMessage");
+    const body = document.getElementById("ordersBody");
+
+    if (!currentStore) return;
+
+    message.textContent = "Chargement des commandes...";
+    body.innerHTML = `<tr><td colspan="7" class="empty">Chargement...</td></tr>`;
+
+    const { data, error } = await supabaseClient
+        .from("orders")
+        .select(`
+            id,
+            user_id,
+            status,
+            payment_status,
+            currency,
+            subtotal,
+            shipping_fee,
+            total,
+            created_at,
+            order_items!inner(
+                id,
+                product_id,
+                store_id,
+                product_name,
+                unit_price,
+                quantity,
+                line_total
+            )
+        `)
+        .eq("order_items.store_id", currentStore.id)
+        .order("created_at", { ascending: false });
+
+    if (error) {
+        console.error("Erreur commandes vendeur :", error);
+        message.textContent = "Impossible de charger les commandes.";
+        body.innerHTML = `<tr><td colspan="7" class="empty">Erreur lors du chargement.</td></tr>`;
+        return;
+    }
+
+    const orders = data || [];
+
+    if (!orders.length) {
+        message.textContent = "Aucune commande pour votre boutique pour le moment.";
+        body.innerHTML = `<tr><td colspan="7" class="empty">Aucune commande.</td></tr>`;
+        return;
+    }
+
+    message.textContent = `${orders.length} commande${orders.length > 1 ? "s" : ""} trouvée${orders.length > 1 ? "s" : ""}.`;
+
+    body.innerHTML = orders.map(order => {
+        const items = (order.order_items || []).filter(item => item.store_id === currentStore.id);
+        const productCount = items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+        const sellerTotal = items.reduce((sum, item) => sum + Number(item.line_total || 0), 0);
+        const date = order.created_at ? new Date(order.created_at).toLocaleString("fr-FR") : "—";
+        const currency = escapeHTML(order.currency || "USD");
+
+        return `
+            <tr>
+                <td><strong>#${escapeHTML(order.id.slice(0, 8))}</strong></td>
+                <td>${escapeHTML(date)}</td>
+                <td>${productCount} article${productCount > 1 ? "s" : ""}</td>
+                <td><strong>${sellerTotal.toLocaleString("fr-FR")} ${currency}</strong></td>
+                <td><span class="badge">${escapeHTML(statusLabel(order.status))}</span></td>
+                <td><span class="badge">${escapeHTML(statusLabel(order.payment_status))}</span></td>
+                <td><button type="button" class="btn secondary seller-order-detail" data-order-id="${escapeHTML(order.id)}">Voir détails</button></td>
+            </tr>
+        `;
+    }).join("");
+
+    body.querySelectorAll(".seller-order-detail").forEach(button => {
+        button.addEventListener("click", () => {
+            const order = orders.find(item => item.id === button.dataset.orderId);
+            if (order) showSellerOrderDetails(order);
+        });
+    });
+}
+
+function showSellerOrderDetails(order) {
+    const items = (order.order_items || []).filter(item => item.store_id === currentStore.id);
+    const currency = escapeHTML(order.currency || "USD");
+    const sellerTotal = items.reduce((sum, item) => sum + Number(item.line_total || 0), 0);
+
+    const overlay = document.createElement("div");
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:20px;z-index:10000;overflow:auto;";
+
+    const box = document.createElement("div");
+    box.style.cssText = "width:100%;max-width:600px;background:#fff;border-radius:16px;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,.25);font-family:Arial,sans-serif;max-height:90vh;overflow:auto;";
+
+    const itemRows = items.map(item => `
+        <div style="padding:12px 0;border-bottom:1px solid #e2e8f0;">
+            <div style="font-weight:700;color:#0f172a;">${escapeHTML(item.product_name)}</div>
+            <div style="color:#64748b;margin-top:4px;">
+                ${Number(item.quantity || 0)} × ${Number(item.unit_price || 0).toLocaleString("fr-FR")} ${currency}
+            </div>
+        </div>
+    `).join("");
+
+    const statusOptions = [
+        ["pending", "En attente"],
+        ["confirmed", "Confirmée"],
+        ["preparing", "En préparation"],
+        ["shipped", "Expédiée"],
+        ["delivered", "Livrée"],
+        ["cancelled", "Annulée"]
+    ].map(([value, label]) =>
+        `<option value="${value}" ${order.status === value ? "selected" : ""}>${label}</option>`
+    ).join("");
+
+    box.innerHTML = `
+        <h3 style="margin:0 0 8px;color:#0f172a;">📦 Détails de la commande</h3>
+
+        <p style="margin:0 0 18px;color:#64748b;">
+            Commande #${escapeHTML(order.id)}
+        </p>
+
+        <div style="margin-bottom:20px;">
+            <strong>Statut de la commande</strong>
+
+            <select id="sellerOrderStatus"
+                style="width:100%;margin-top:8px;padding:12px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;font-size:15px;">
+                ${statusOptions}
+            </select>
+
+            <button id="saveSellerOrderStatus" type="button"
+                style="width:100%;margin-top:10px;padding:12px;border:0;background:#0f172a;color:#fff;border-radius:10px;font-weight:600;cursor:pointer;">
+                Enregistrer le statut
+            </button>
+
+            <div id="orderStatusMessage"
+                style="margin-top:8px;font-size:14px;">
+            </div>
+        </div>
+
+        <div style="margin-bottom:18px;">
+            <strong>Paiement :</strong>
+            ${escapeHTML(statusLabel(order.payment_status))}
+        </div>
+
+        <div>${itemRows}</div>
+
+        <div style="margin-top:18px;padding-top:16px;border-top:2px solid #e2e8f0;font-size:18px;">
+            <strong>
+                Total de vos produits :
+                ${sellerTotal.toLocaleString("fr-FR")} ${currency}
+            </strong>
+        </div>
+
+        <button id="closeSellerOrderDetails" type="button"
+            style="width:100%;margin-top:20px;padding:12px;border:0;background:#64748b;color:#fff;border-radius:10px;font-weight:600;cursor:pointer;">
+            Fermer
+        </button>
+    `;
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    document.getElementById("closeSellerOrderDetails").onclick = () => overlay.remove();
+
+    overlay.onclick = event => {
+        if (event.target === overlay) {
+            overlay.remove();
+        }
+    };
+
+    document.getElementById("saveSellerOrderStatus").onclick = async () => {
+        const select = document.getElementById("sellerOrderStatus");
+        const button = document.getElementById("saveSellerOrderStatus");
+        const message = document.getElementById("orderStatusMessage");
+        const newStatus = select.value;
+
+        if (newStatus === order.status) {
+            message.textContent = "Le statut n'a pas changé.";
+            message.style.color = "#64748b";
+            return;
+        }
+
+        button.disabled = true;
+        button.textContent = "Enregistrement...";
+        message.textContent = "";
+
+        const { error } = await supabaseClient.rpc(
+            "seller_update_order_status",
+            {
+                p_order_id: order.id,
+                p_status: newStatus
+            }
+        );
+
+        if (error) {
+            console.error("Erreur changement statut :", error);
+            message.textContent = "Impossible de modifier le statut.";
+            message.style.color = "#dc2626";
+            button.disabled = false;
+            button.textContent = "Enregistrer le statut";
+            return;
+        }
+
+        order.status = newStatus;
+
+        message.textContent = "Statut mis à jour avec succès.";
+        message.style.color = "#16a34a";
+        button.textContent = "Statut enregistré";
+
+        showSuccess("Statut de la commande mis à jour.");
+
+        await loadSellerOrders();
+
+        setTimeout(() => overlay.remove(), 800);
+    };
 }
 
 async function loadProducts() {
@@ -1001,11 +1296,13 @@ async function saveProduct(event) {
 }
 document.getElementById("cancelProductBtn").addEventListener("click", () => { editingProductId = null; document.getElementById("productFormTitle").textContent = "Ajouter un produit"; document.getElementById("productForm").reset(); document.getElementById("productFormBox").style.display = "none"; });
 document.getElementById("productForm").addEventListener("submit", saveProduct);
+
+document.getElementById("refreshOrdersBtn").addEventListener("click", loadSellerOrders);
 async function deleteProduct(productId) {
     const product = products.find(item => item.id === productId);
     if (!product) return;
 
-    if (!confirm("Supprimer ce produit ?")) return;
+    if (!await confirmDeleteProduct()) return;
 
     const { error } = await supabaseClient
         .from("products")
@@ -1020,7 +1317,7 @@ async function deleteProduct(productId) {
     }
 
     await loadProducts();
-    alert("Produit supprimé avec succès.");
+    showSuccess("Produit supprimé avec succès.");
 }
 
 function editProduct(productId) {
@@ -1167,12 +1464,16 @@ async function init() {
 
         await loadProducts();
 
+        await loadSellerOrders();
+
         document.getElementById("loading").textContent =
             "Affichage de votre espace vendeur...";
+
 
         document
             .getElementById("sellerContent")
             .style.display = "block";
+
 
         hideLoading();
 

@@ -17,5 +17,10 @@
   "bugs": {
     "url": "https://github.com/angekalenga-ai/zando/issues"
   },
-  "homepage": "https://github.com/angekalenga-ai/zando#readme"
+  "homepage": "https://github.com/angekalenga-ai/zando#readme",
+  "devDependencies": {
+    "eslint": "^10.10.0",
+    "globals": "^17.12.0",
+    "supabase": "^2.117.0"
+  }
 }

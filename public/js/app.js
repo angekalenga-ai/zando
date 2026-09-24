@@ -402,7 +402,7 @@ async function addProductToSupabaseCart(
     error: productDataError
 } = await supabaseClient
     .from("products")
-    .select("id, name, price, currency")
+    .select("id, name, price, currency, store_id")
     .eq("id", productId)
     .single();
 
@@ -413,6 +413,7 @@ if (productDataError) {
 const localProduct = {
     id: productData.id,
     name: productData.name,
+    store_id: productData.store_id,
     price: Number(productData.price || 0),
     currency: productData.currency || "USD"
 };
@@ -949,7 +950,8 @@ async function loadCartFromSupabase() {
                     id,
                     name,
                     price,
-                    currency
+                    currency,
+                    store_id
                 )
             `)
             .eq("cart_id", cart.id);
@@ -963,6 +965,7 @@ async function loadCartFromSupabase() {
             .map(item => ({
                 id: item.products.id,
                 name: item.products.name,
+                store_id: item.products.store_id,
                 price: Number(item.products.price || 0),
                 currency: item.products.currency || "USD",
                 quantity: Number(item.quantity || 0)
@@ -1270,6 +1273,7 @@ async function checkout() {
         const orderItems = state.cart.map(item => ({
             order_id: order.id,
             product_id: item.id,
+            store_id: item.store_id,
             product_name: item.name,
             unit_price: Number(item.price || 0),
             quantity: Number(item.quantity || 0),

@@ -1,1 +1,7 @@
 supabase/.temp/
+
+# Dependencies
+node_modules/
+
+# Local backup files
+*.before-*
