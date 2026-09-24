@@ -892,7 +892,7 @@ async function loadSellerOrders() {
     });
 }
 
-function showSellerOrderDetails(order) {
+async function showSellerOrderDetails(order) {
     const items = (order.order_items || []).filter(item => item.store_id === currentStore.id);
     const currency = escapeHTML(order.currency || "USD");
     const sellerTotal = items.reduce((sum, item) => sum + Number(item.line_total || 0), 0);
@@ -962,6 +962,18 @@ function showSellerOrderDetails(order) {
             </strong>
         </div>
 
+        <div style="margin-top:24px;padding-top:18px;border-top:2px solid #e2e8f0;">
+            <h4 style="margin:0 0 12px;color:#0f172a;font-size:17px;">
+                🕒 Historique des statuts
+            </h4>
+
+            <div id="orderStatusHistory">
+                <div style="padding:12px;color:#64748b;font-size:14px;">
+                    Chargement de l'historique...
+                </div>
+            </div>
+        </div>
+
         <button id="closeSellerOrderDetails" type="button"
             style="width:100%;margin-top:20px;padding:12px;border:0;background:#64748b;color:#fff;border-radius:10px;font-weight:600;cursor:pointer;">
             Fermer
@@ -978,6 +990,54 @@ function showSellerOrderDetails(order) {
             overlay.remove();
         }
     };
+
+    const historyBox = document.getElementById("orderStatusHistory");
+
+    const { data: history, error: historyError } = await supabaseClient
+        .from("order_status_history")
+        .select("id, old_status, new_status, changed_at")
+        .eq("order_id", order.id)
+        .order("changed_at", { ascending: false });
+
+    if (historyError) {
+        console.error("Erreur historique statut :", historyError);
+
+        historyBox.innerHTML = `
+            <div style="padding:12px;border-radius:10px;background:#fef2f2;color:#dc2626;font-size:14px;">
+                Impossible de charger l'historique.
+            </div>
+        `;
+    } else if (!history || history.length === 0) {
+        historyBox.innerHTML = `
+            <div style="padding:12px;border-radius:10px;background:#f8fafc;color:#64748b;font-size:14px;">
+                Aucun historique disponible.
+            </div>
+        `;
+    } else {
+        historyBox.innerHTML = history.map(entry => {
+            const date = new Date(entry.changed_at).toLocaleString("fr-FR");
+
+            const transition = entry.old_status
+                ? `${escapeHTML(statusLabel(entry.old_status))} → ${escapeHTML(statusLabel(entry.new_status))}`
+                : `Commande créée → ${escapeHTML(statusLabel(entry.new_status))}`;
+
+            return `
+                <div style="padding:12px 0;border-bottom:1px solid #e2e8f0;">
+                    <div style="font-weight:700;color:#0f172a;">
+                        ${escapeHTML(statusLabel(entry.new_status))}
+                    </div>
+
+                    <div style="margin-top:4px;color:#475569;font-size:14px;">
+                        ${transition}
+                    </div>
+
+                    <div style="margin-top:4px;color:#94a3b8;font-size:12px;">
+                        ${escapeHTML(date)}
+                    </div>
+                </div>
+            `;
+        }).join("");
+    }
 
     document.getElementById("saveSellerOrderStatus").onclick = async () => {
         const select = document.getElementById("sellerOrderStatus");
