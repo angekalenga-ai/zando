@@ -112,6 +112,98 @@ function statusLabel(status) {
     return statusLabels[status] || status || "Inconnu";
 }
 
+function renderOrderTracking(status) {
+
+    const steps = [
+        { key: "pending", label: "En attente", icon: "⏳" },
+        { key: "confirmed", label: "Confirmée", icon: "✓" },
+        { key: "preparing", label: "En préparation", icon: "📦" },
+        { key: "shipped", label: "Expédiée", icon: "🚚" },
+        { key: "delivered", label: "Livrée", icon: "✓" }
+    ];
+
+    if (status === "cancelled") {
+        return `
+            <div style="
+                padding:16px;
+                border-radius:14px;
+                background:#fef2f2;
+                border:1px solid #fecaca;
+                color:#b91c1c;
+                text-align:center;
+                font-weight:700;
+            ">
+                ❌ Commande annulée
+            </div>
+        `;
+    }
+
+    const currentIndex = steps.findIndex(step => step.key === status);
+
+    return `
+        <div style="
+            margin-top:20px;
+            padding:18px;
+            border:1px solid #e2e8f0;
+            border-radius:14px;
+            background:#f8fafc;
+        ">
+            <div style="
+                font-weight:700;
+                color:#0f172a;
+                margin-bottom:18px;
+            ">
+                Suivi de votre commande
+            </div>
+
+            <div style="
+                display:flex;
+                justify-content:space-between;
+                gap:8px;
+                overflow-x:auto;
+                padding-bottom:5px;
+            ">
+                ${steps.map((step, index) => {
+
+                    const active = index <= currentIndex;
+
+                    return `
+                        <div style="
+                            min-width:82px;
+                            flex:1;
+                            text-align:center;
+                        ">
+                            <div style="
+                                width:38px;
+                                height:38px;
+                                margin:0 auto 8px;
+                                border-radius:50%;
+                                display:flex;
+                                align-items:center;
+                                justify-content:center;
+                                background:${active ? "#2563eb" : "#e2e8f0"};
+                                color:${active ? "#fff" : "#64748b"};
+                                font-weight:700;
+                            ">
+                                ${step.icon}
+                            </div>
+
+                            <div style="
+                                font-size:12px;
+                                line-height:1.3;
+                                color:${active ? "#1d4ed8" : "#64748b"};
+                                font-weight:${index === currentIndex ? "700" : "500"};
+                            ">
+                                ${escapeHTML(step.label)}
+                            </div>
+                        </div>
+                    `;
+                }).join("")}
+            </div>
+        </div>
+    `;
+}
+
 
 function formatMoney(value, currency) {
     return `${Number(value || 0).toLocaleString("fr-FR")} ${escapeHTML(currency || "USD")}`;
@@ -549,6 +641,8 @@ async function showOrderDetails(order) {
                 ${escapeHTML(statusLabel(order.status))}
             </strong>
         </div>
+
+        ${renderOrderTracking(order.status)}
 
         <div style="
             margin-bottom:20px;
