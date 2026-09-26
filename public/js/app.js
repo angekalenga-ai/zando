@@ -1195,6 +1195,30 @@ async function removeFromCart(index) {
 }
 
 
+async function confirmCheckoutAddress() {
+    const selected = document.querySelector('input[name="checkoutAddress"]:checked');
+    if (!selected) return alert("Veuillez sélectionner une adresse.");
+    const user = await getCurrentUser();
+    if (!user) return;
+    const { data: address, error } = await supabaseClient.from("addresses").select("id").eq("id", selected.value).eq("user_id", user.id).single();
+    if (error || !address) return alert("Cette adresse n’est pas valide.");
+    window.zandoCheckoutAddressId = address.id;
+    window.zandoCheckoutAddressConfirmed = true;
+    closeModal();
+    await checkout();
+}
+
+async function showCheckoutAddressSelection(user) {
+    const { data: addresses, error } = await supabaseClient.from("addresses").select("id, full_name, phone, address_line1, address_line2, city, region, postal_code, is_default").eq("user_id", user.id).order("is_default", { ascending: false }).order("created_at", { ascending: false });
+    if (error) { console.error(error); alert("Impossible de charger vos adresses."); return; }
+    if (!addresses || addresses.length === 0) { showModal(`<h2>Adresse de livraison 📍</h2><p>Ajoutez une adresse avant de passer votre commande.</p><button class="btn btn-primary" style="width:100%;" onclick="closeModal(); showAddressManager();">📍 Ajouter une adresse</button>`); return; }
+    showModal(`<h2>Adresse de livraison 📍</h2><p>Choisissez l’adresse à utiliser pour cette commande.</p><div id="checkoutAddresses"></div><button class="btn btn-primary" style="width:100%;margin-top:10px;" onclick="confirmCheckoutAddress()">Continuer avec cette adresse</button><button class="btn btn-primary" style="width:100%;margin-top:10px;" onclick="closeModal()">Annuler</button>`);
+    document.getElementById("checkoutAddresses").innerHTML = addresses.map((address, index) => {
+        const fullAddress = [address.address_line1, address.address_line2, address.city, address.region, address.postal_code].filter(Boolean).join(", ");
+        return `<label style="display:block;padding:14px;margin-bottom:10px;border:1px solid #e2e8f0;border-radius:12px;cursor:pointer;"><input type="radio" name="checkoutAddress" value="${address.id}" ${index === 0 ? "checked" : ""} style="margin-right:8px;"><strong>${escapeHTML(address.full_name || "")}</strong>${address.is_default ? " ⭐" : ""}<div style="margin-top:6px;color:#475569;">📞 ${escapeHTML(address.phone || "")}<br>📍 ${escapeHTML(fullAddress)}</div></label>`;
+    }).join("");
+}
+
 async function checkout() {
 
     if (!state.cart.length) {
@@ -1215,6 +1239,11 @@ async function checkout() {
     }
 
     const user = await getCurrentUser();
+
+    if (!window.zandoCheckoutAddressConfirmed) {
+        await showCheckoutAddressSelection(user);
+        return;
+    }
 
     if (!user) {
 
@@ -1256,6 +1285,7 @@ async function checkout() {
             .from("orders")
             .insert({
                 user_id: user.id,
+                address_id: window.zandoCheckoutAddressId || null,
                 status: "pending",
                 payment_status: "pending",
                 currency: currency,
@@ -1296,6 +1326,9 @@ async function checkout() {
             "✅ Commande Zando créée :",
             order.id
         );
+
+        window.zandoCheckoutAddressId = null;
+        window.zandoCheckoutAddressConfirmed = false;
 
         state.cart = [];
 
