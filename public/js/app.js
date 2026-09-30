@@ -1061,7 +1061,7 @@ function showCart() {
                         <br>
 
                         <small>
-                            ${item.quantity} × ${item.price} $
+                            ${item.quantity} × ${item.price} ${escapeHTML(item.currency || "USD")}
                         </small>
                     </div>
 
@@ -1100,7 +1100,7 @@ function showCart() {
         >
             <span>Total</span>
 
-            <span>${total.toFixed(2)} $</span>
+            <span>${getCartCurrencies().length > 1 ? "Devises mélangées" : total.toFixed(2) + " " + escapeHTML(getCartCurrencies()[0] || "USD")}</span>
         </div>
 
         <br>
@@ -1219,7 +1219,28 @@ async function showCheckoutAddressSelection(user) {
     }).join("");
 }
 
+function getCartCurrencies() {
+    return [...new Set(state.cart.map(item => item.currency || "USD"))];
+}
+
 async function checkout() {
+
+    if (getCartCurrencies().length > 1) {
+        showModal(`
+            <h2>Devises différentes ⚠️</h2>
+            <p>
+                Votre panier mélange plusieurs devises
+                (${getCartCurrencies().map(c => escapeHTML(c)).join(", ")}).
+                Passez une commande par devise : retirez les articles
+                d'une des devises, puis recommencez.
+            </p>
+            <br>
+            <button class="btn btn-primary" onclick="showCart()">
+                Retour au panier
+            </button>
+        `);
+        return;
+    }
 
     if (!state.cart.length) {
 
@@ -2631,7 +2652,13 @@ async function registerZando(event) {
             error
         } = await supabaseClient.auth.signUp({
             email: email,
-            password: password
+            password: password,
+            options: {
+                data: {
+                    full_name: name,
+                    phone: phone
+                }
+            }
         });
 
         if (error) {
@@ -2644,20 +2671,8 @@ async function registerZando(event) {
             );
         }
 
-        const {
-            error: profileError
-        } = await supabaseClient
-            .from("profiles")
-            .upsert({
-                id: data.user.id,
-                full_name: name,
-                phone: phone,
-                role: "customer"
-            });
-
-        if (profileError) {
-            throw profileError;
-        }
+        // Le profil est créé par le trigger handle_new_user_profile
+        // à partir des metadata (full_name, phone).
 
         showModal(`
             <div class="modal-success">
@@ -2665,7 +2680,7 @@ async function registerZando(event) {
                 <h2>Compte créé avec succès 🎉</h2>
 
                 <p>
-                    Votre compte Zando a été créé.
+                    Votre compte Zando a été créé. Un e-mail de confirmation vous a été envoyé : cliquez sur le lien qu'il contient avant de vous connecter.
                 </p>
 
                 <p>
