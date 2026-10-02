@@ -953,6 +953,16 @@ async function showSellerOrderDetails(order) {
             ${escapeHTML(statusLabel(order.payment_status))}
         </div>
 
+        <div id="sellerDeliveryAddress"
+            style="margin:20px 0;padding:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;">
+            <strong style="display:block;margin-bottom:10px;color:#0f172a;">
+                📍 Adresse de livraison
+            </strong>
+            <div style="color:#64748b;font-size:14px;">
+                Chargement de l’adresse...
+            </div>
+        </div>
+
         <div>${itemRows}</div>
 
         <div style="margin-top:18px;padding-top:16px;border-top:2px solid #e2e8f0;font-size:18px;">
@@ -990,6 +1000,66 @@ async function showSellerOrderDetails(order) {
             overlay.remove();
         }
     };
+
+    const deliveryAddressBox = document.getElementById("sellerDeliveryAddress");
+
+    const { data: deliveryAddress, error: deliveryAddressError } =
+        await supabaseClient.rpc("get_order_delivery_address", {
+            p_order_id: order.id
+        });
+
+    if (deliveryAddressError) {
+        console.error("Erreur adresse de livraison :", deliveryAddressError);
+
+        deliveryAddressBox.innerHTML = `
+            <strong style="display:block;margin-bottom:10px;color:#0f172a;">
+                📍 Adresse de livraison
+            </strong>
+            <div style="padding:10px;border-radius:10px;background:#fef2f2;color:#dc2626;font-size:14px;">
+                Impossible de charger l’adresse.
+            </div>
+        `;
+    } else {
+        const address = Array.isArray(deliveryAddress)
+            ? deliveryAddress[0]
+            : deliveryAddress;
+
+        if (!address) {
+            deliveryAddressBox.innerHTML = `
+                <strong style="display:block;margin-bottom:10px;color:#0f172a;">
+                    📍 Adresse de livraison
+                </strong>
+                <div style="color:#64748b;font-size:14px;">
+                    Aucune adresse de livraison associée.
+                </div>
+            `;
+        } else {
+            const addressLine = [
+                address.address_line1,
+                address.address_line2
+            ].filter(Boolean).join("<br>");
+
+            const locationLine = [
+                address.city,
+                address.region
+            ].filter(Boolean).join(", ");
+
+            deliveryAddressBox.innerHTML = `
+                <strong style="display:block;margin-bottom:10px;color:#0f172a;">
+                    📍 Adresse de livraison
+                </strong>
+
+                <div style="color:#334155;line-height:1.7;">
+                    <strong>${escapeHTML(address.full_name || "")}</strong><br>
+                    📞 ${escapeHTML(address.phone || "")}<br>
+                    ${escapeHTML(addressLine)}
+                    ${locationLine ? `<br>${escapeHTML(locationLine)}` : ""}
+                    ${address.postal_code ? `<br>${escapeHTML(address.postal_code)}` : ""}
+                    ${address.country ? `<br>${escapeHTML(address.country)}` : ""}
+                </div>
+            `;
+        }
+    }
 
     const historyBox = document.getElementById("orderStatusHistory");
 

@@ -313,6 +313,17 @@ async function loadOrders() {
             notes,
             created_at,
             updated_at,
+            address:addresses(
+                id,
+                full_name,
+                phone,
+                address_line1,
+                address_line2,
+                city,
+                region,
+                postal_code,
+                country
+            ),
             order_items(
                 id,
                 product_id,
@@ -643,6 +654,35 @@ async function showOrderDetails(order) {
         </div>
 
         ${renderOrderTracking(order.status)}
+
+        ${order.address ? `
+        <div style="
+            margin:20px 0;
+            padding:16px;
+            background:#f8fafc;
+            border:1px solid #e2e8f0;
+            border-radius:12px;
+        ">
+            <strong style="
+                display:block;
+                margin-bottom:10px;
+                color:#0f172a;
+            ">
+                📍 Adresse de livraison
+            </strong>
+
+            <div style="color:#334155;line-height:1.7;">
+                <strong>${escapeHTML(order.address.full_name || "")}</strong><br>
+                📞 ${escapeHTML(order.address.phone || "")}<br>
+                ${escapeHTML(order.address.address_line1 || "")}
+                ${order.address.address_line2 ? `<br>${escapeHTML(order.address.address_line2)}` : ""}
+                <br>
+                ${escapeHTML(order.address.city || "")}
+                ${order.address.region ? `, ${escapeHTML(order.address.region)}` : ""}
+                ${order.address.postal_code ? ` ${escapeHTML(order.address.postal_code)}` : ""}
+            </div>
+        </div>
+        ` : ""}
 
         <div style="
             margin-bottom:20px;
