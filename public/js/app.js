@@ -81,6 +81,17 @@ async function loadSupabaseProducts() {
                     image_url,
                     alt_text,
                     sort_order
+                ),
+                product_variants (
+                    id,
+                    sku,
+                    attributes,
+                    price,
+                    compare_at_price,
+                    currency,
+                    stock_quantity,
+                    image_url,
+                    status
                 )
             `)
             .eq("status", "active")
@@ -258,7 +269,8 @@ function renderSupabaseProducts(products) {
 
 async function addProductToSupabaseCart(
     productId,
-    productName
+    productName,
+    selectedVariant = null
 ) {
 
     const user = await getCurrentUser();
@@ -337,15 +349,28 @@ async function addProductToSupabaseCart(
          * dans le panier.
          */
 
-        const {
-            data: existingItem,
-            error: itemError
-        } = await supabaseClient
+        let cartItemQuery = supabaseClient
             .from("cart_items")
             .select("id, quantity")
             .eq("cart_id", cart.id)
-            .eq("product_id", productId)
-            .maybeSingle();
+            .eq("product_id", productId);
+
+        if (selectedVariant) {
+            cartItemQuery = cartItemQuery.eq(
+                "variant_id",
+                selectedVariant.id
+            );
+        } else {
+            cartItemQuery = cartItemQuery.is(
+                "variant_id",
+                null
+            );
+        }
+
+        const {
+            data: existingItem,
+            error: itemError
+        } = await cartItemQuery.maybeSingle();
 
         if (itemError) {
             throw itemError;
@@ -378,6 +403,7 @@ async function addProductToSupabaseCart(
                 .insert({
                     cart_id: cart.id,
                     product_id: productId,
+                    variant_id: selectedVariant ? selectedVariant.id : null,
                     quantity: 1
                 });
 
@@ -414,13 +440,26 @@ const localProduct = {
     id: productData.id,
     name: productData.name,
     store_id: productData.store_id,
-    price: Number(productData.price || 0),
-    currency: productData.currency || "USD"
+    price: selectedVariant
+        ? Number(selectedVariant.price || 0)
+        : Number(productData.price || 0),
+    currency: selectedVariant
+        ? (selectedVariant.currency || "USD")
+        : (productData.currency || "USD"),
+    variant_id: selectedVariant
+        ? selectedVariant.id
+        : null,
+    variant_attributes: selectedVariant
+        ? (selectedVariant.attributes || {})
+        : {}
 };
 
         const existingLocal =
             state.cart.find(
-                item => item.id === productId
+                item =>
+                    item.id === productId &&
+                    (item.variant_id || null) ===
+                    (selectedVariant ? selectedVariant.id : null)
             );
 
         if (existingLocal) {
@@ -827,6 +866,211 @@ function filterByCategory(category) {
    CART
 ===================================================== */
 
+
+async function showVariantSelector(productId, productName) {
+
+    const { data: variants, error } = await supabaseClient
+        .from("product_variants")
+        .select(`
+            id,
+            attributes,
+            price,
+            compare_at_price,
+            currency,
+            stock_quantity,
+            status
+        `)
+        .eq("product_id", productId)
+        .eq("status", "active")
+        .order("created_at", { ascending: true });
+
+    if (error) {
+        console.error("Erreur chargement variantes :", error);
+        showModal(`
+            <h2>Erreur</h2>
+            <p>Impossible de charger les variantes du produit.</p>
+            <button class="btn btn-primary" onclick="closeModal()">
+                Fermer
+            </button>
+        `);
+        return;
+    }
+
+    if (!variants || variants.length === 0) {
+        await addProductToSupabaseCart(productId, productName);
+        return;
+    }
+
+    const attributeNames = [];
+
+    variants.forEach(variant => {
+        Object.keys(variant.attributes || {}).forEach(name => {
+            if (!attributeNames.includes(name)) {
+                attributeNames.push(name);
+            }
+        });
+    });
+
+    const selections = {};
+
+    const optionsHTML = attributeNames.map(name => {
+
+        const values = [];
+
+        variants.forEach(variant => {
+            const value = variant.attributes?.[name];
+
+            if (value !== undefined && !values.includes(value)) {
+                values.push(value);
+            }
+        });
+
+        return `
+            <div class="variant-selector-group">
+                <label>
+                    <strong>${escapeHTML(name)}</strong>
+                </label>
+
+                <select
+                    class="variant-selector"
+                    data-attribute="${escapeHTML(name)}"
+                >
+                    <option value="">Choisir...</option>
+
+                    ${values.map(value => `
+                        <option value="${escapeHTML(value)}">
+                            ${escapeHTML(value)}
+                        </option>
+                    `).join("")}
+                </select>
+            </div>
+        `;
+    }).join("");
+
+    showModal(`
+        <div class="variant-selector-modal">
+
+            <h2>${escapeHTML(productName)}</h2>
+
+            <p>
+                Choisissez votre variante :
+            </p>
+
+            ${optionsHTML}
+
+            <div id="selectedVariantInfo"></div>
+
+            <button
+                class="btn btn-primary"
+                id="confirmVariantBtn"
+            >
+                Ajouter au panier 🛒
+            </button>
+
+            <button
+                class="btn secondary"
+                onclick="closeModal()"
+            >
+                Annuler
+            </button>
+
+        </div>
+    `);
+
+    const selectorElements = [
+        ...document.querySelectorAll(".variant-selector")
+    ];
+
+    const updateSelectedVariant = () => {
+
+        selectorElements.forEach(select => {
+            selections[select.dataset.attribute] = select.value;
+        });
+
+        const selectedVariant = variants.find(variant => {
+
+            return attributeNames.every(name =>
+                variant.attributes?.[name] === selections[name]
+            );
+
+        });
+
+        const info = document.getElementById("selectedVariantInfo");
+
+        if (!info) return;
+
+        if (!selectedVariant) {
+            info.innerHTML = `
+                <p class="form-help">
+                    Sélectionnez toutes les options.
+                </p>
+            `;
+            return;
+        }
+
+        if (Number(selectedVariant.stock_quantity) <= 0) {
+            info.innerHTML = `
+                <p>
+                    <strong>Rupture de stock</strong>
+                </p>
+            `;
+            return;
+        }
+
+        info.innerHTML = `
+            <p>
+                Prix :
+                <strong>
+                    ${Number(selectedVariant.price).toFixed(2)}
+                    ${escapeHTML(selectedVariant.currency || "")}
+                </strong>
+            </p>
+
+            <p>
+                Stock disponible :
+                ${selectedVariant.stock_quantity}
+            </p>
+        `;
+    };
+
+    selectorElements.forEach(select => {
+        select.addEventListener("change", updateSelectedVariant);
+    });
+
+    document
+        .getElementById("confirmVariantBtn")
+        .addEventListener("click", async () => {
+
+            selectorElements.forEach(select => {
+                selections[select.dataset.attribute] = select.value;
+            });
+
+            const selectedVariant = variants.find(variant =>
+                attributeNames.every(name =>
+                    variant.attributes?.[name] === selections[name]
+                )
+            );
+
+            if (!selectedVariant) {
+                alert("Veuillez sélectionner toutes les options.");
+                return;
+            }
+
+            if (Number(selectedVariant.stock_quantity) <= 0) {
+                alert("Cette variante est en rupture de stock.");
+                return;
+            }
+
+            closeModal();
+
+            await addProductToSupabaseCart(
+                productId,
+                productName,
+                selectedVariant
+            );
+        });
+}
+
 function setupCartButtons() {
 
     const buttons =
@@ -858,7 +1102,7 @@ function setupCartButtons() {
                 return;
             }
 
-            await addProductToSupabaseCart(
+            await showVariantSelector(
                 productId,
                 productName
             );
@@ -945,6 +1189,7 @@ async function loadCartFromSupabase() {
             .select(`
                 id,
                 product_id,
+                variant_id,
                 quantity,
                 products (
                     id,
@@ -952,6 +1197,13 @@ async function loadCartFromSupabase() {
                     price,
                     currency,
                     store_id
+                ),
+                product_variants (
+                    id,
+                    attributes,
+                    price,
+                    currency,
+                    image_url
                 )
             `)
             .eq("cart_id", cart.id);
@@ -966,8 +1218,19 @@ async function loadCartFromSupabase() {
                 id: item.products.id,
                 name: item.products.name,
                 store_id: item.products.store_id,
-                price: Number(item.products.price || 0),
-                currency: item.products.currency || "USD",
+                price: item.product_variants
+                    ? Number(item.product_variants.price || 0)
+                    : Number(item.products.price || 0),
+                currency: item.product_variants
+                    ? (item.product_variants.currency || "USD")
+                    : (item.products.currency || "USD"),
+                variant_id: item.variant_id || null,
+                variant_attributes: item.product_variants
+                    ? (item.product_variants.attributes || {})
+                    : {},
+                variant_image_url: item.product_variants
+                    ? (item.product_variants.image_url || null)
+                    : null,
                 quantity: Number(item.quantity || 0)
             }));
 
@@ -1057,6 +1320,24 @@ function showCart() {
                         <strong>
                             ${escapeHTML(item.name)}
                         </strong>
+
+                        ${
+                            item.variant_id &&
+                            item.variant_attributes &&
+                            Object.keys(item.variant_attributes).length
+                                ? `
+                                    <br>
+                                    <small style="color:#666;">
+                                        Variante :
+                                        ${escapeHTML(
+                                            Object.entries(item.variant_attributes)
+                                                .map(([name, value]) => `${name}: ${value}`)
+                                                .join(" · ")
+                                        )}
+                                    </small>
+                                  `
+                                : ""
+                        }
 
                         <br>
 
@@ -1287,6 +1568,7 @@ async function checkout() {
 
         const orderItemsPayload = state.cart.map(item => ({
             product_id: item.id,
+            variant_id: item.variant_id || null,
             quantity: Number(item.quantity || 0)
         }));
 
