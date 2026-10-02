@@ -1377,6 +1377,10 @@ async function checkout() {
                 Impossible d'enregistrer votre commande.
             </p>
 
+            <p style="font-size:0.85rem;opacity:0.8;word-break:break-word;">
+                ${escapeHTML(error?.message || error?.details || "Erreur inconnue")}
+            </p>
+
             <p>
                 Veuillez réessayer.
             </p>
