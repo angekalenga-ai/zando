@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zando Admin — Boutiques</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--primary:#111827;--accent:#f59e0b;--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#667085;--border:#e5e9f0;--ok:#16a34a;--warn:#d97706;--bad:#dc2626}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+header{background:var(--primary);color:#fff;padding:12px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.brand{font-weight:800;font-size:18px}.brand span{color:var(--accent)}
+nav{display:flex;flex-wrap:wrap;gap:6px}
+nav a{color:#cbd5e1;text-decoration:none;padding:6px 10px;border-radius:8px;font-size:14px}
+nav a.active,nav a:hover{background:rgba(255,255,255,.12);color:#fff}
+#logoutBtn{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 10px;font-size:14px}
+main{max-width:900px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:4px 0 12px}
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.filters button{border:1px solid var(--border);background:#fff;border-radius:999px;padding:8px 14px;font-size:14px;cursor:pointer}
+.filters button.on{background:var(--primary);color:#fff;border-color:var(--primary)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px}
+.row{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.name{font-weight:700;font-size:17px}
+.meta{color:var(--muted);font-size:13px;margin-top:4px;line-height:1.5}
+.desc{margin:8px 0 0;font-size:14px}
+.badge{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.b-pending{background:#fef3c7;color:var(--warn)}.b-active{background:#dcfce7;color:var(--ok)}.b-suspended{background:#fee2e2;color:var(--bad)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.actions button{border:0;border-radius:10px;padding:10px 14px;font-size:14px;font-weight:600;cursor:pointer;color:#fff}
+.go{background:var(--ok)}.stop{background:var(--bad)}
+.empty{text-align:center;color:var(--muted);padding:30px 10px}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--primary);color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;display:none;max-width:90%;z-index:10}
+#toast.err{background:var(--bad)}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Zando<span>Admin</span></div>
+  <nav>
+    <a href="index.html">📊 Tableau de bord</a>
+    <a href="commandes.html">📦 Commandes</a>
+    <a href="produits.html">🛍️ Produits</a>
+    <a href="boutiques.html" class="active">🏪 Vendeurs</a>
+  </nav>
+  <button id="logoutBtn">Déconnexion</button>
+</header>
+<main>
+  <h1>Boutiques vendeurs</h1>
+  <div class="filters" id="filters"></div>
+  <div id="list"><div class="empty">Chargement…</div></div>
+</main>
+<div id="toast"></div>
+<script>
+const SUPABASE_URL = "https://kcrliiinrjlrcspnaeac.supabase.co";
+const SUPABASE_KEY = "sb_publishable_iv3rzG16WGv7e7DObdzCNw_dDs4VDM3";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+});
+
+const LABELS = { pending: "En attente", active: "Actives", suspended: "Suspendues", all: "Toutes" };
+const BADGES = { pending: "En attente", active: "Active", suspended: "Suspendue" };
+let stores = [];
+let filter = "pending";
+
+function esc(v) {
+  return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+
+function toast(msg, isError) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = isError ? "err" : "";
+  t.style.display = "block";
+  setTimeout(function () { t.style.display = "none"; }, 3500);
+}
+
+async function isAdmin() {
+  try {
+    const { data: { user }, error } = await supabaseClient.auth.getUser();
+    if (error || !user) return false;
+    const { data: profile, error: pErr } = await supabaseClient
+      .from("profiles").select("role").eq("id", user.id).single();
+    return !pErr && !!profile && profile.role === "admin";
+  } catch (e) {
+    return false;
+  }
+}
+
+async function loadStores() {
+  const { data, error } = await supabaseClient
+    .from("stores")
+    .select("id, name, slug, description, status, created_at, owner:profiles!stores_owner_id_fkey(full_name, phone)")
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.error("❌ Chargement boutiques :", error);
+    document.getElementById("list").innerHTML = '<div class="empty">Impossible de charger les boutiques.</div>';
+    return;
+  }
+  stores = data || [];
+  render();
+}
+
+function render() {
+  const counts = { all: stores.length, pending: 0, active: 0, suspended: 0 };
+  stores.forEach(function (s) { if (counts[s.status] !== undefined) counts[s.status]++; });
+
+  document.getElementById("filters").innerHTML = ["pending", "active", "suspended", "all"].map(function (k) {
+    return '<button data-filter="' + k + '" class="' + (filter === k ? "on" : "") + '">' +
+      LABELS[k] + " (" + counts[k] + ")</button>";
+  }).join("");
+
+  const shown = stores.filter(function (s) { return filter === "all" || s.status === filter; });
+  if (!shown.length) {
+    document.getElementById("list").innerHTML = '<div class="empty">Aucune boutique dans cette catégorie.</div>';
+    return;
+  }
+
+  document.getElementById("list").innerHTML = shown.map(function (s) {
+    const owner = s.owner || {};
+    let actions = "";
+    if (s.status === "pending") {
+      actions = '<button class="go" data-id="' + esc(s.id) + '" data-status="active" data-label="Approuver">✅ Approuver</button>' +
+                '<button class="stop" data-id="' + esc(s.id) + '" data-status="suspended" data-label="Refuser">⛔ Refuser</button>';
+    } else if (s.status === "active") {
+      actions = '<button class="stop" data-id="' + esc(s.id) + '" data-status="suspended" data-label="Suspendre">⏸️ Suspendre</button>';
+    } else {
+      actions = '<button class="go" data-id="' + esc(s.id) + '" data-status="active" data-label="Réactiver">▶️ Réactiver</button>';
+    }
+    return '<div class="card">' +
+      '<div class="row"><div class="name">' + esc(s.name) + '</div>' +
+      '<span class="badge b-' + esc(s.status) + '">' + esc(BADGES[s.status] || s.status) + '</span></div>' +
+      '<div class="meta">Propriétaire : ' + esc(owner.full_name || "—") + ' · ' + esc(owner.phone || "—") +
+      '<br>Créée le ' + esc(new Date(s.created_at).toLocaleDateString("fr-FR")) + ' · ' + esc(s.slug) + '</div>' +
+      (s.description ? '<p class="desc">' + esc(s.description) + '</p>' : "") +
+      '<div class="actions">' + actions + '</div></div>';
+  }).join("");
+}
+
+async function setStatus(id, status, label) {
+  if (!confirm(label + " cette boutique ?")) return;
+  const { error } = await supabaseClient.rpc("admin_set_store_status", { p_store_id: id, p_status: status });
+  if (error) {
+    console.error("❌ Changement de statut :", error);
+    toast("❌ " + error.message, true);
+    return;
+  }
+  toast("✅ Boutique mise à jour");
+  await loadStores();
+}
+
+document.addEventListener("click", function (e) {
+  const f = e.target.closest("[data-filter]");
+  if (f) { filter = f.getAttribute("data-filter"); render(); return; }
+  const b = e.target.closest("[data-status]");
+  if (b) { setStatus(b.getAttribute("data-id"), b.getAttribute("data-status"), b.getAttribute("data-label")); }
+});
+
+document.getElementById("logoutBtn").addEventListener("click", async function () {
+  await supabaseClient.auth.signOut();
+  window.location.href = "index.html";
+});
+
+(async function init() {
+  if (!(await isAdmin())) { window.location.href = "index.html"; return; }
+  await loadStores();
+})();
+</script>
+</body>
+</html>
