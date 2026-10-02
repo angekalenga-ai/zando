@@ -1342,7 +1342,7 @@ async function checkout() {
 
                 <p>
                     <strong>
-                        Total : ${total.toFixed(2)} ${escapeHTML(currency)}
+                        Total : ${Number(order.total || 0).toFixed(2)} ${escapeHTML(order.currency || "")}
                     </strong>
                 </p>
 
