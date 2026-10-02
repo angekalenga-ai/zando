@@ -696,6 +696,13 @@ a {
     font-size: 90px;
 }
 
+.product-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
 .product-badge {
     position: absolute;
 
