@@ -2904,6 +2904,24 @@ async function loginZando(event) {
             data.user?.id
         );
 
+        /*
+         * Redirection automatique de l'administrateur
+         * vers ZandoAdmin après connexion.
+         */
+        const {
+            data: adminProfile,
+            error: adminProfileError
+        } = await supabaseClient
+            .from("profiles")
+            .select("role")
+            .eq("id", data.user.id)
+            .maybeSingle();
+
+        if (!adminProfileError && adminProfile?.role === "admin") {
+            window.location.href = "admin/index.html";
+            return;
+        }
+
         closeModal();
 
         showModal(`
@@ -3026,7 +3044,63 @@ function setupSeller() {
             return;
         }
 
-        showSellerForm();
+        try {
+
+            /*
+             * Règle métier :
+             * un compte Zando = une seule boutique.
+             *
+             * Si une boutique existe déjà pour ce compte,
+             * on ouvre directement son espace vendeur.
+             */
+            const {
+                data: existingStore,
+                error: storeError
+            } = await supabaseClient
+                .from("stores")
+                .select("id, name, status")
+                .eq("owner_id", user.id)
+                .maybeSingle();
+
+            if (storeError) {
+                throw storeError;
+            }
+
+            if (existingStore) {
+                window.location.href = "seller.html";
+                return;
+            }
+
+            showSellerForm();
+
+        } catch (error) {
+
+            console.error(
+                "❌ Vérification boutique :",
+                error
+            );
+
+            showModal(`
+                <h2>Impossible de vérifier votre boutique ❌</h2>
+
+                <p>
+                    Nous n'avons pas pu vérifier si une boutique
+                    est déjà associée à votre compte.
+                </p>
+
+                <p style="color:#dc2626;">
+                    ${escapeHTML(error.message || "Erreur inconnue.")}
+                </p>
+
+                <button
+                    class="btn btn-primary"
+                    style="width:100%; margin-top:15px;"
+                    onclick="closeModal()"
+                >
+                    Fermer
+                </button>
+            `);
+        }
 
     });
 
