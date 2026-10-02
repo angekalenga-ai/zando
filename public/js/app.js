@@ -1285,62 +1285,37 @@ async function checkout() {
 
     try {
 
-        const subtotal = state.cart.reduce(
-            (sum, item) =>
-                sum + Number(item.price || 0) * Number(item.quantity || 0),
-            0
-        );
-
-        const currency =
-            state.cart[0]?.currency || "USD";
-
-        const shippingFee = 0;
-
-        const total =
-            subtotal + shippingFee;
+        const orderItemsPayload = state.cart.map(item => ({
+            product_id: item.id,
+            quantity: Number(item.quantity || 0)
+        }));
 
         const {
-            data: order,
+            data: orderId,
             error: orderError
-        } = await supabaseClient
-            .from("orders")
-            .insert({
-                user_id: user.id,
-                address_id: window.zandoCheckoutAddressId || null,
-                status: "pending",
-                payment_status: "pending",
-                currency: currency,
-                subtotal: subtotal,
-                shipping_fee: shippingFee,
-                total: total
-            })
-            .select("id")
-            .single();
+        } = await supabaseClient.rpc(
+            "create_order_atomic",
+            {
+                p_address_id: window.zandoCheckoutAddressId || null,
+                p_items: orderItemsPayload
+            }
+        );
 
         if (orderError) {
             throw orderError;
         }
 
-        const orderItems = state.cart.map(item => ({
-            order_id: order.id,
-            product_id: item.id,
-            store_id: item.store_id,
-            product_name: item.name,
-            unit_price: Number(item.price || 0),
-            quantity: Number(item.quantity || 0),
-            line_total:
-                Number(item.price || 0) *
-                Number(item.quantity || 0)
-        }));
-
         const {
-            error: itemsError
+            data: order,
+            error: orderFetchError
         } = await supabaseClient
-            .from("order_items")
-            .insert(orderItems);
+            .from("orders")
+            .select("id, total, currency")
+            .eq("id", orderId)
+            .single();
 
-        if (itemsError) {
-            throw itemsError;
+        if (orderFetchError) {
+            throw orderFetchError;
         }
 
         console.log(
