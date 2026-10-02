@@ -685,6 +685,7 @@ a {
 
 .product-card-image {
     position: relative;
+    overflow: hidden;
 
     height: 230px;
 
@@ -697,8 +698,8 @@ a {
 }
 
 .product-card-image img {
-    width: 85%;
-    height: 85%;
+    width: 90%;
+    height: 90%;
     object-fit: contain;
     display: block;
 }
