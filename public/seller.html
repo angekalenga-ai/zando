@@ -1605,25 +1605,45 @@ function renderVariantCombinations() {
     `;
 }
 
+function variantAttributesKey(attributes) {
+    return Object.entries(attributes || {})
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([name, value]) => `${name}=${value}`)
+        .join("|");
+}
+
 function collectRenderedVariants() {
     const options = collectVariantOptions();
     const combinations = buildVariantCombinations(options);
+
+    const existingByKey = new Map(
+        productVariants.map(variant => [
+            variantAttributesKey(variant.attributes),
+            variant
+        ])
+    );
 
     const rows = [
         ...document.querySelectorAll("#variantCombinationsBox tbody tr")
     ];
 
-    return rows.map((row, index) => ({
-        id: productVariants[index]?.id || null,
-        attributes: combinations[index] || {},
-        sku: row.querySelector(".variant-sku")?.value.trim() || null,
-        price: Number(row.querySelector(".variant-price")?.value || 0),
-        compare_at_price: productVariants[index]?.compare_at_price ?? null,
-        currency: document.getElementById("productCurrency").value,
-        stock_quantity: Number(row.querySelector(".variant-stock")?.value || 0),
-        image_url: productVariants[index]?.image_url || null,
-        status: productVariants[index]?.status || "active"
-    }));
+    return rows.map((row, index) => {
+        const attributes = combinations[index] || {};
+        const existingVariant =
+            existingByKey.get(variantAttributesKey(attributes)) || null;
+
+        return {
+            id: existingVariant?.id || null,
+            attributes,
+            sku: row.querySelector(".variant-sku")?.value.trim() || null,
+            price: Number(row.querySelector(".variant-price")?.value || 0),
+            compare_at_price: existingVariant?.compare_at_price ?? null,
+            currency: document.getElementById("productCurrency").value,
+            stock_quantity: Number(row.querySelector(".variant-stock")?.value || 0),
+            image_url: existingVariant?.image_url || null,
+            status: existingVariant?.status || "active"
+        };
+    });
 }
 
 document.getElementById("productHasVariants")
@@ -1633,6 +1653,7 @@ document.getElementById("addVariantOptionBtn")
     .addEventListener("click", () => addVariantOption());
 
 async function saveProduct(event) {
+    console.log("DEBUG SAVE PRODUCT : début");
     event.preventDefault();
 
     const name = document.getElementById("productName").value.trim();
@@ -1691,7 +1712,7 @@ async function saveProduct(event) {
         name
             .toLowerCase()
             .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[\\u0300-\\u036f]/g, "")
             .replace(/[^a-z0-9]+/g, "-")
             .replace(/^-|-$/g, "") +
         "-" +
@@ -1707,9 +1728,7 @@ async function saveProduct(event) {
         compare_at_price:
             document.getElementById("productComparePrice").value === ""
                 ? null
-                : Number(
-                    document.getElementById("productComparePrice").value
-                ),
+                : Number(document.getElementById("productComparePrice").value),
         currency,
         stock_quantity: stock,
         status,
@@ -1723,11 +1742,15 @@ async function saveProduct(event) {
     let savedProductId = editingProductId;
 
     if (editingProductId) {
+        console.log("DEBUG SAVE PRODUCT : avant update produit");
+
         const { error } = await supabaseClient
             .from("products")
             .update(payload)
             .eq("id", editingProductId)
             .eq("store_id", currentStore.id);
+
+        console.log("DEBUG SAVE PRODUCT : après update produit", error);
 
         if (error) {
             alert("Erreur : " + error.message);
@@ -1748,6 +1771,118 @@ async function saveProduct(event) {
         savedProductId = createdProduct.id;
     }
 
+    console.log("DEBUG SAVE PRODUCT : avant chargement variantes existantes");
+
+
+
+    const { data: existingVariants, error: existingVariantsError } =
+        await supabaseClient
+            .from("product_variants")
+            .select("id, attributes, sku, price, compare_at_price, currency, stock_quantity, image_url, status")
+            .eq("product_id", savedProductId);
+
+    console.log("DEBUG SAVE PRODUCT : après chargement variantes existantes", {
+        existingVariants,
+        existingVariantsError
+    });
+
+    if (existingVariantsError) {
+        console.error("Erreur chargement variantes existantes :", existingVariantsError);
+        alert("Impossible de vérifier les variantes existantes : " + existingVariantsError.message);
+        return;
+    }
+
+    const oldVariants = existingVariants || [];
+
+    const currentVariantIds = new Set(
+        variants
+            .filter(variant => variant.id)
+            .map(variant => variant.id)
+    );
+
+    const removedVariants = oldVariants.filter(
+        variant => !currentVariantIds.has(variant.id)
+    );
+
+    if (removedVariants.length) {
+        const removedIds = removedVariants.map(variant => variant.id);
+
+        const { data: orderedVariantRows, error: orderedVariantError } =
+            await supabaseClient
+                .from("order_items")
+                .select("variant_id")
+                .in("variant_id", removedIds);
+
+        if (orderedVariantError) {
+            console.error(
+                "Erreur vérification historique variantes :",
+                orderedVariantError
+            );
+            alert(
+                "Impossible de vérifier l'historique des variantes : " +
+                orderedVariantError.message
+            );
+            return;
+        }
+
+        const orderedVariantIds = new Set(
+            (orderedVariantRows || [])
+                .map(row => row.variant_id)
+                .filter(Boolean)
+        );
+
+        const variantsToDeactivate = removedIds.filter(
+            id => orderedVariantIds.has(id)
+        );
+
+        const variantsToDelete = removedIds.filter(
+            id => !orderedVariantIds.has(id)
+        );
+
+        if (variantsToDeactivate.length) {
+            const { error } = await supabaseClient
+                .from("product_variants")
+                .update({
+                    status: "inactive",
+                    updated_at: new Date().toISOString()
+                })
+                .in("id", variantsToDeactivate)
+                .eq("product_id", savedProductId);
+
+            if (error) {
+                console.error(
+                    "Erreur désactivation anciennes variantes :",
+                    error
+                );
+                alert(
+                    "Impossible de désactiver certaines variantes : " +
+                    error.message
+                );
+                return;
+            }
+        }
+
+        if (variantsToDelete.length) {
+            const { error } = await supabaseClient
+                .from("product_variants")
+                .delete()
+                .in("id", variantsToDelete)
+                .eq("product_id", savedProductId);
+
+            if (error) {
+                console.error(
+                    "Erreur suppression anciennes variantes :",
+                    error
+                );
+                alert(
+                    "Impossible de supprimer certaines anciennes variantes : " +
+                    error.message
+                );
+                return;
+            }
+        }
+    }
+
     if (hasVariants) {
         const variantPayload = variants.map(variant => ({
             id: variant.id || crypto.randomUUID(),
@@ -1759,7 +1894,7 @@ async function saveProduct(event) {
             currency: variant.currency,
             stock_quantity: variant.stock_quantity,
             image_url: variant.image_url,
-            status: variant.status
+            status: "active"
         }));
 
         const { error: variantError } = await supabaseClient
@@ -1775,18 +1910,6 @@ async function saveProduct(event) {
                 variantError.message
             );
             return;
-        }
-    } else if (editingProductId) {
-        const { error: deleteVariantsError } = await supabaseClient
-            .from("product_variants")
-            .delete()
-            .eq("product_id", savedProductId);
-
-        if (deleteVariantsError) {
-            console.error(
-                "Erreur suppression variantes :",
-                deleteVariantsError
-            );
         }
     }
 
@@ -1937,10 +2060,25 @@ async function loadProductVariants(productId) {
         ...document.querySelectorAll("#variantCombinationsBox tbody tr")
     ];
 
-    productVariants.forEach((variant, index) => {
-        const row = rows[index];
+    const variantsByKey = new Map(
+        productVariants.map(variant => [
+            variantAttributesKey(variant.attributes),
+            variant
+        ])
+    );
 
-        if (!row) {
+    rows.forEach(row => {
+        const index = Number(row.dataset.variantIndex);
+        const options = collectVariantOptions();
+        const combinations = buildVariantCombinations(options);
+        const attributes = combinations[index] || {};
+
+        const variant =
+            variantsByKey.get(
+                variantAttributesKey(attributes)
+            );
+
+        if (!variant) {
             return;
         }
 
