@@ -1447,7 +1447,8 @@ async function removeFromCart(index) {
             .from("cart_items")
             .delete()
             .eq("cart_id", cart.id)
-            .eq("product_id", item.id);
+            .eq("product_id", item.id)
+            .filter("variant_id", item.variant_id ? "eq" : "is", item.variant_id || null);
 
         if (deleteError) {
             throw deleteError;
@@ -1498,6 +1499,31 @@ async function showCheckoutAddressSelection(user) {
         const fullAddress = [address.address_line1, address.address_line2, address.city, address.region, address.postal_code].filter(Boolean).join(", ");
         return `<label style="display:block;padding:14px;margin-bottom:10px;border:1px solid #e2e8f0;border-radius:12px;cursor:pointer;"><input type="radio" name="checkoutAddress" value="${address.id}" ${index === 0 ? "checked" : ""} style="margin-right:8px;"><strong>${escapeHTML(address.full_name || "")}</strong>${address.is_default ? " ⭐" : ""}<div style="margin-top:6px;color:#475569;">📞 ${escapeHTML(address.phone || "")}<br>📍 ${escapeHTML(fullAddress)}</div></label>`;
     }).join("");
+}
+
+function checkoutErrorMessage(error) {
+    const raw = String(error?.message || "");
+    const sep = raw.indexOf(":");
+    const code = (sep === -1 ? raw : raw.slice(0, sep)).trim();
+    const detail = sep === -1 ? "" : raw.slice(sep + 1).trim();
+    const name = detail ? ` « ${detail} »` : "";
+
+    const messages = {
+        STORE_NOT_ACTIVE: `La boutique de l'article${name} n'est plus disponible. Retirez-le de votre panier.`,
+        PRODUCT_NOT_ACTIVE: `L'article${name} n'est plus disponible. Retirez-le de votre panier.`,
+        PRODUCT_NOT_FOUND: "Un article de votre panier n'existe plus. Retirez-le puis réessayez.",
+        VARIANT_NOT_ACTIVE: "Une variante de votre panier n'est plus disponible. Retirez-la puis réessayez.",
+        VARIANT_NOT_FOUND: "Une variante de votre panier n'existe plus. Retirez-la puis réessayez.",
+        INSUFFICIENT_STOCK: `Stock insuffisant pour l'article${name}.`,
+        INSUFFICIENT_VARIANT_STOCK: `Stock insuffisant pour l'article${name}.`,
+        MIXED_CURRENCIES: "Votre panier mélange plusieurs devises. Passez une commande par devise.",
+        INVALID_ADDRESS: "Adresse de livraison invalide. Choisissez une adresse puis réessayez.",
+        INVALID_CART_ITEM: "Un article du panier est invalide. Retirez-le puis réessayez.",
+        EMPTY_CART: "Votre panier est vide.",
+        AUTH_REQUIRED: "Veuillez vous connecter pour commander."
+    };
+
+    return messages[code] || error?.message || error?.details || "Erreur inconnue";
 }
 
 function getCartCurrencies() {
@@ -1608,6 +1634,24 @@ async function checkout() {
         window.zandoCheckoutAddressId = null;
         window.zandoCheckoutAddressConfirmed = false;
 
+        // Vide aussi le panier en base (sinon les articles reviennent au rechargement)
+        try {
+            const { data: ownCart } = await supabaseClient
+                .from("carts")
+                .select("id")
+                .eq("user_id", user.id)
+                .maybeSingle();
+
+            if (ownCart) {
+                await supabaseClient
+                    .from("cart_items")
+                    .delete()
+                    .eq("cart_id", ownCart.id);
+            }
+        } catch (cleanupError) {
+            console.error("❌ Nettoyage du panier :", cleanupError);
+        }
+
         state.cart = [];
 
         updateCartCounter();
@@ -1660,7 +1704,7 @@ async function checkout() {
             </p>
 
             <p style="font-size:0.85rem;opacity:0.8;word-break:break-word;">
-                ${escapeHTML(error?.message || error?.details || "Erreur inconnue")}
+                ${escapeHTML(checkoutErrorMessage(error))}
             </p>
 
             <p>
