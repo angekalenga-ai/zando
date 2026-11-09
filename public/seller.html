@@ -770,13 +770,10 @@ async function requireSeller() {
         throw profileError;
     }
 
-    if (
-        profile.role !== "seller" &&
-        profile.role !== "admin"
-    ) {
+    if (profile.role !== "seller") {
 
         throw new Error(
-            "SELLER_REQUIRED"
+            "Cet espace est réservé aux comptes vendeurs dédiés."
         );
 
     }

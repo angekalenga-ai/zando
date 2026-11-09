@@ -1568,11 +1568,6 @@ async function checkout() {
 
     const user = await getCurrentUser();
 
-    if (!window.zandoCheckoutAddressConfirmed) {
-        await showCheckoutAddressSelection(user);
-        return;
-    }
-
     if (!user) {
 
         showModal(`
@@ -1587,6 +1582,11 @@ async function checkout() {
             </button>
         `);
 
+        return;
+    }
+
+    if (!window.zandoCheckoutAddressConfirmed) {
+        await showCheckoutAddressSelection(user);
         return;
     }
 
@@ -3322,42 +3322,56 @@ function setupSeller() {
 
         if (!user) {
             showModal(`
-                <h2>Devenir vendeur 🏪</h2>
-
+                <h2>Espace vendeur 🏪</h2>
                 <p>
-                    Vous devez créer un compte ou vous connecter
-                    avant de devenir vendeur sur Zando.
+                    Un compte vendeur dédié est nécessaire.
+                    Connectez-vous avec votre compte vendeur.
                 </p>
-
                 <button
                     class="btn btn-primary"
                     style="width:100%; margin-top:15px;"
-                    onclick="showRegisterForm()"
-                >
-                    Créer un compte
-                </button>
-
-                <button
-                    class="btn btn-primary"
-                    style="width:100%; margin-top:10px;"
                     onclick="showLoginForm()"
                 >
                     Se connecter
                 </button>
             `);
-
             return;
         }
 
         try {
+            const {
+                data: profile,
+                error: profileError
+            } = await supabaseClient
+                .from("profiles")
+                .select("role")
+                .eq("id", user.id)
+                .single();
 
-            /*
-             * Règle métier :
-             * un compte Zando = une seule boutique.
-             *
-             * Si une boutique existe déjà pour ce compte,
-             * on ouvre directement son espace vendeur.
-             */
+            if (profileError) throw profileError;
+
+            if (profile.role !== "seller") {
+                showModal(`
+                    <h2>Accès réservé aux vendeurs 🔒</h2>
+                    <p>
+                        Votre compte client ou administrateur
+                        ne peut pas accéder à l'espace vendeur.
+                    </p>
+                    <p>
+                        Pour devenir vendeur, contactez
+                        l'équipe Zando afin d'obtenir un compte
+                        vendeur distinct.
+                    </p>
+                    <button
+                        class="btn btn-primary"
+                        onclick="closeModal()"
+                    >
+                        Compris
+                    </button>
+                `);
+                return;
+            }
+
             const {
                 data: existingStore,
                 error: storeError
@@ -3367,9 +3381,7 @@ function setupSeller() {
                 .eq("owner_id", user.id)
                 .maybeSingle();
 
-            if (storeError) {
-                throw storeError;
-            }
+            if (storeError) throw storeError;
 
             if (existingStore) {
                 window.location.href = "seller.html";
@@ -3379,36 +3391,19 @@ function setupSeller() {
             showSellerForm();
 
         } catch (error) {
-
-            console.error(
-                "❌ Vérification boutique :",
-                error
-            );
+            console.error("Vérification vendeur :", error);
 
             showModal(`
-                <h2>Impossible de vérifier votre boutique ❌</h2>
-
+                <h2>Vérification impossible ❌</h2>
                 <p>
-                    Nous n'avons pas pu vérifier si une boutique
-                    est déjà associée à votre compte.
-                </p>
-
-                <p style="color:#dc2626;">
                     ${escapeHTML(error.message || "Erreur inconnue.")}
                 </p>
-
-                <button
-                    class="btn btn-primary"
-                    style="width:100%; margin-top:15px;"
-                    onclick="closeModal()"
-                >
+                <button class="btn btn-primary" onclick="closeModal()">
                     Fermer
                 </button>
             `);
         }
-
     });
-
 }
 
 
@@ -3525,6 +3520,23 @@ async function createSellerStore(event) {
         if (!user) {
             throw new Error(
                 "Vous devez être connecté pour créer une boutique."
+            );
+        }
+
+        const {
+            data: profile,
+            error: profileError
+        } = await supabaseClient
+            .from("profiles")
+            .select("role")
+            .eq("id", user.id)
+            .single();
+
+        if (profileError) throw profileError;
+
+        if (profile.role !== "seller") {
+            throw new Error(
+                "Un compte vendeur dédié est obligatoire. Les comptes client et admin ne peuvent pas créer de boutique."
             );
         }
 
