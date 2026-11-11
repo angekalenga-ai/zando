@@ -1257,3 +1257,221 @@ a {
         grid-template-columns: 1fr;
     }
 }
+
+/* =====================================================
+   ZANDO — FORMULAIRE DE CANDIDATURE VENDEUR
+===================================================== */
+
+.modal.seller-wizard-modal {
+    width: min(100%, 760px);
+    max-height: 90vh;
+    max-height: 90dvh;
+    overflow-y: auto;
+    padding: 28px;
+}
+
+.seller-wizard {
+    color: #1e293b;
+}
+
+.seller-wizard-header {
+    padding-right: 25px;
+    margin-bottom: 22px;
+}
+
+.seller-wizard-header h2 {
+    margin-bottom: 8px;
+}
+
+.seller-wizard-header p {
+    color: #64748b;
+    line-height: 1.5;
+}
+
+.seller-wizard-progress {
+    height: 8px;
+    overflow: hidden;
+    background: #e2e8f0;
+    border-radius: 20px;
+    margin: 18px 0 10px;
+}
+
+.seller-wizard-progress-bar {
+    height: 100%;
+    width: 20%;
+    background: #0f766e;
+    border-radius: inherit;
+    transition: width .25s ease;
+}
+
+.seller-wizard-steps {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 7px;
+    margin-bottom: 24px;
+}
+
+.seller-wizard-step {
+    text-align: center;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.seller-wizard-step span {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    margin: 0 auto 6px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    font-weight: 700;
+}
+
+.seller-wizard-step.active,
+.seller-wizard-step.done {
+    color: #0f766e;
+    font-weight: 700;
+}
+
+.seller-wizard-step.active span,
+.seller-wizard-step.done span {
+    color: white;
+    background: #0f766e;
+}
+
+.seller-wizard-panel {
+    border-top: 1px solid #e2e8f0;
+    padding-top: 20px;
+}
+
+.seller-wizard-panel h3 {
+    margin: 0 0 8px;
+    font-size: 20px;
+}
+
+.seller-wizard-panel > p {
+    color: #64748b;
+    margin-bottom: 20px;
+}
+
+.seller-wizard-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 15px;
+}
+
+.seller-wizard-field {
+    min-width: 0;
+}
+
+.seller-wizard-field.full {
+    grid-column: 1 / -1;
+}
+
+.seller-wizard-field label {
+    display: block;
+    margin-bottom: 7px;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.seller-wizard-field input,
+.seller-wizard-field select,
+.seller-wizard-field textarea {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 45px;
+    padding: 11px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 9px;
+    background: white;
+    color: #1e293b;
+    font: inherit;
+}
+
+.seller-wizard-field textarea {
+    min-height: 85px;
+    resize: vertical;
+}
+
+.seller-wizard-field input:focus,
+.seller-wizard-field select:focus,
+.seller-wizard-field textarea:focus {
+    outline: 2px solid #99f6e4;
+    border-color: #0f766e;
+}
+
+.seller-wizard-field small {
+    display: block;
+    margin-top: 5px;
+    color: #64748b;
+    font-size: 12px;
+}
+
+.seller-wizard-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 25px;
+}
+
+.seller-wizard-actions button {
+    min-height: 44px;
+}
+
+.seller-wizard-message {
+    margin-top: 14px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.seller-wizard-message.error {
+    color: #b91c1c;
+}
+
+.seller-wizard-message.success {
+    color: #047857;
+}
+
+.seller-wizard-save {
+    color: #0f766e;
+    background: #ecfdf5;
+    border: 1px solid #99f6e4;
+}
+
+@media (max-width: 700px) {
+    .modal-overlay {
+        padding: 8px;
+    }
+
+    .modal.seller-wizard-modal {
+        width: 100%;
+        max-height: 94vh;
+        max-height: 94dvh;
+        padding: 20px 15px;
+        border-radius: 15px;
+    }
+
+    .seller-wizard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .seller-wizard-field.full {
+        grid-column: auto;
+    }
+
+    .seller-wizard-step {
+        font-size: 10px;
+    }
+
+    .seller-wizard-actions {
+        flex-direction: column;
+    }
+
+    .seller-wizard-actions button {
+        width: 100%;
+    }
+}

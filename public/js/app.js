@@ -3311,27 +3311,19 @@ async function logoutZando() {
 
 
 /* =====================================================
-   SELLER
+   SELLER — CANDIDATURE EN 5 ÉTAPES
 ===================================================== */
 
 function setupSeller() {
-
     sellerButton?.addEventListener("click", async () => {
-
         const user = await getCurrentUser();
 
         if (!user) {
             showModal(`
-                <h2>Espace vendeur 🏪</h2>
-                <p>
-                    Un compte vendeur dédié est nécessaire.
-                    Connectez-vous avec votre compte vendeur.
-                </p>
-                <button
-                    class="btn btn-primary"
-                    style="width:100%; margin-top:15px;"
-                    onclick="showLoginForm()"
-                >
+                <h2>Devenir vendeur 🏪</h2>
+                <p>Connectez-vous à votre compte Zando pour déposer une candidature vendeur.</p>
+                <button class="btn btn-primary" style="width:100%;"
+                    onclick="showLoginForm()">
                     Se connecter
                 </button>
             `);
@@ -3339,306 +3331,97 @@ function setupSeller() {
         }
 
         try {
-            const {
-                data: profile,
-                error: profileError
-            } = await supabaseClient
-                .from("profiles")
-                .select("role")
-                .eq("id", user.id)
-                .single();
+            const { data: profile, error: profileError } =
+                await supabaseClient
+                    .from("profiles")
+                    .select("role")
+                    .eq("id", user.id)
+                    .single();
 
             if (profileError) throw profileError;
 
-            if (profile.role !== "seller") {
+            if (profile.role === "admin") {
                 showModal(`
-                    <h2>Accès réservé aux vendeurs 🔒</h2>
-                    <p>
-                        Votre compte client ou administrateur
-                        ne peut pas accéder à l'espace vendeur.
-                    </p>
-                    <p>
-                        Pour devenir vendeur, contactez
-                        l'équipe Zando afin d'obtenir un compte
-                        vendeur distinct.
-                    </p>
-                    <button
-                        class="btn btn-primary"
-                        onclick="closeModal()"
-                    >
-                        Compris
-                    </button>
+                    <h2>Compte administrateur</h2>
+                    <p>Un compte administrateur ne peut pas déposer une candidature vendeur.</p>
+                    <button class="btn btn-primary" onclick="closeModal()">Compris</button>
                 `);
                 return;
             }
 
-            const {
-                data: existingStore,
-                error: storeError
-            } = await supabaseClient
-                .from("stores")
-                .select("id, name, status")
-                .eq("owner_id", user.id)
-                .maybeSingle();
+            const { data: existingStore, error: storeError } =
+                await supabaseClient
+                    .from("stores")
+                    .select("id,name,status")
+                    .eq("owner_id", user.id)
+                    .maybeSingle();
 
             if (storeError) throw storeError;
 
-            if (existingStore) {
+            if (existingStore && profile.role === "seller") {
                 window.location.href = "seller.html";
                 return;
             }
 
-            showSellerForm();
+            if (existingStore) {
+                showModal(`
+                    <h2>Boutique déjà enregistrée</h2>
+                    <p>Une boutique est déjà associée à votre compte. Contactez l'équipe Zando pour vérifier son statut.</p>
+                    <button class="btn btn-primary" onclick="closeModal()">Fermer</button>
+                `);
+                return;
+            }
+
+            const { data: application, error: applicationError } =
+                await supabaseClient
+                    .from("seller_applications")
+                    .select("id,review_status,review_note")
+                    .eq("user_id", user.id)
+                    .maybeSingle();
+
+            if (applicationError) throw applicationError;
+
+            if (application) {
+                const status = {
+                    pending: "en attente d'examen",
+                    approved: "approuvée",
+                    rejected: "rejetée"
+                }[application.review_status] || "déjà enregistrée";
+
+                showModal(`
+                    <h2>Candidature déjà enregistrée</h2>
+                    <p>Votre candidature est actuellement : <strong>${escapeHTML(status)}</strong>.</p>
+                    ${application.review_note ? `<p>${escapeHTML(application.review_note)}</p>` : ""}
+                    <button class="btn btn-primary" onclick="closeModal()">Fermer</button>
+                `);
+                return;
+            }
+
+            if (profile.role !== "customer") {
+                showModal(`
+                    <h2>Compte non éligible</h2>
+                    <p>Votre type de compte ne permet pas de déposer une candidature vendeur actuellement.</p>
+                    <button class="btn btn-primary" onclick="closeModal()">Fermer</button>
+                `);
+                return;
+            }
+
+            if (typeof window.openSellerWizard !== "function") {
+                throw new Error("Le formulaire vendeur n'est pas encore chargé. Actualisez la page.");
+            }
+
+            await window.openSellerWizard(supabaseClient, user);
 
         } catch (error) {
-            console.error("Vérification vendeur :", error);
+            console.error("Vérification candidature vendeur :", error);
 
             showModal(`
-                <h2>Vérification impossible ❌</h2>
-                <p>
-                    ${escapeHTML(error.message || "Erreur inconnue.")}
-                </p>
-                <button class="btn btn-primary" onclick="closeModal()">
-                    Fermer
-                </button>
+                <h2>Vérification impossible</h2>
+                <p>${escapeHTML(error.message || "Erreur inconnue.")}</p>
+                <button class="btn btn-primary" onclick="closeModal()">Fermer</button>
             `);
         }
     });
-}
-
-
-function showSellerForm() {
-
-    showModal(`
-        <h2>Créer ma boutique 🏪</h2>
-
-        <p style="color:#64748b;">
-            Présentez votre boutique aux clients de Zando.
-        </p>
-
-        <form id="sellerForm">
-
-            <label style="display:block; font-weight:700; margin-top:15px;">
-                Nom de la boutique
-            </label>
-
-            <input
-                type="text"
-                id="sellerStoreName"
-                required
-                maxlength="100"
-                placeholder="Ex : Boutique Ange Fashion"
-                style="
-                    width:100%;
-                    box-sizing:border-box;
-                    padding:12px;
-                    margin:8px 0 15px;
-                    border:1px solid #d1d5db;
-                    border-radius:9px;
-                "
-            >
-
-            <label style="display:block; font-weight:700;">
-                Description
-            </label>
-
-            <textarea
-                id="sellerStoreDescription"
-                maxlength="500"
-                placeholder="Décrivez votre boutique..."
-                style="
-                    width:100%;
-                    min-height:100px;
-                    box-sizing:border-box;
-                    padding:12px;
-                    margin:8px 0 15px;
-                    border:1px solid #d1d5db;
-                    border-radius:9px;
-                    resize:vertical;
-                "
-            ></textarea>
-
-            <button
-                type="submit"
-                class="btn btn-primary"
-                style="width:100%;"
-            >
-                🏪 Créer ma boutique
-            </button>
-
-        </form>
-
-        <p
-            id="sellerMessage"
-            style="margin-top:15px;"
-        ></p>
-    `);
-
-    const form =
-        document.getElementById("sellerForm");
-
-    form?.addEventListener(
-        "submit",
-        createSellerStore
-    );
-
-}
-
-
-async function createSellerStore(event) {
-
-    event.preventDefault();
-
-    const name =
-        document.getElementById("sellerStoreName")?.value.trim();
-
-    const description =
-        document.getElementById("sellerStoreDescription")?.value.trim();
-
-    const message =
-        document.getElementById("sellerMessage");
-
-    if (!name) {
-
-        if (message) {
-            message.textContent =
-                "❌ Le nom de la boutique est obligatoire.";
-        }
-
-        return;
-    }
-
-    if (message) {
-        message.textContent =
-            "Création de votre boutique en cours...";
-    }
-
-    try {
-
-        const user = await getCurrentUser();
-
-        if (!user) {
-            throw new Error(
-                "Vous devez être connecté pour créer une boutique."
-            );
-        }
-
-        const {
-            data: profile,
-            error: profileError
-        } = await supabaseClient
-            .from("profiles")
-            .select("role")
-            .eq("id", user.id)
-            .single();
-
-        if (profileError) throw profileError;
-
-        if (profile.role !== "seller") {
-            throw new Error(
-                "Un compte vendeur dédié est obligatoire. Les comptes client et admin ne peuvent pas créer de boutique."
-            );
-        }
-
-        const {
-            data: existingStore,
-            error: existingError
-        } = await supabaseClient
-            .from("stores")
-            .select("id, name, status")
-            .eq("owner_id", user.id)
-            .maybeSingle();
-
-        if (existingError) {
-            throw existingError;
-        }
-
-        if (existingStore) {
-
-            if (message) {
-                message.textContent =
-                    "ℹ️ Vous avez déjà une boutique : " +
-                    existingStore.name;
-            }
-
-            return;
-        }
-
-        const slug =
-            name
-                .toLowerCase()
-                .normalize("NFD")
-                .replace(/[\u0300-\u036f]/g, "")
-                .replace(/[^a-z0-9]+/g, "-")
-                .replace(/^-+|-+$/g, "");
-
-        const {
-            data: store,
-            error
-        } = await supabaseClient
-            .from("stores")
-            .insert({
-                owner_id: user.id,
-                name: name,
-                slug: slug,
-                description: description || null,
-                status: "pending"
-            })
-            .select()
-            .single();
-
-        if (error) {
-            throw error;
-        }
-
-        console.log(
-            "✅ Boutique créée :",
-            store
-        );
-
-        showModal(`
-            <div class="modal-success">
-
-                <h2>Boutique créée avec succès 🎉</h2>
-
-                <p>
-                    Votre boutique
-                    <strong>${escapeHTML(name)}</strong>
-                    a bien été enregistrée.
-                </p>
-
-                <p>
-                    Elle est actuellement en attente de validation.
-                </p>
-
-                <button
-                    class="btn btn-primary"
-                    style="width:100%;"
-                    onclick="closeModal()"
-                >
-                    Continuer
-                </button>
-
-            </div>
-        `);
-
-    } catch (error) {
-
-        console.error(
-            "❌ Erreur création boutique :",
-            error
-        );
-
-        if (message) {
-            message.textContent =
-                "❌ " + (
-                    error.message ||
-                    "Impossible de créer la boutique."
-                );
-        }
-
-    }
-
 }
 
 
