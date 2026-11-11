@@ -41,6 +41,8 @@
         let saving = false;
 
         const defaults = {
+            applicant_name: "",
+            applicant_phone: "",
             pid_type: "",
             pid_num: "",
             boutique: "",
@@ -127,7 +129,14 @@
             const panels = [
                 `
                 <h3>1. Identité du demandeur</h3>
-                <p>Renseignez les informations de la personne qui demande à devenir vendeur.</p>
+                <p>Renseignez les coordonnées de la personne qui demande à devenir vendeur.</p>
+                ${field("Nom complet", "applicant_name", {required:true, maxlength:150, placeholder:"Ex. Ange Kalenga"})}
+                ${field("Téléphone de contact", "applicant_phone", {required:true, type:"tel", maxlength:30, placeholder:"+243..."} )}
+                <label class="seller-wizard-field">
+                    <span>Adresse e-mail du compte</span>
+                    <input type="email" value="${esc(user.email || "")}" readonly>
+                    <small>Cette adresse provient de votre compte Zando.</small>
+                </label>
                 ${selectField("Type de pièce d'identité", "pid_type", [
                     {value:"carte_identite",label:"Carte d'identité"},
                     {value:"passeport",label:"Passeport"},
@@ -363,6 +372,9 @@
         };
 
         const makePayload = () => ({
+            applicant_name: values.applicant_name || null,
+            applicant_phone: values.applicant_phone || null,
+            applicant_email: user.email || null,
             pid_type: values.pid_type || null,
             pid_num: values.pid_num || null,
             boutique: values.boutique || null,
@@ -465,6 +477,8 @@
 
         const validateAllSteps = () => {
             const requiredFields = [
+                { step: 1, name: "applicant_name" },
+                { step: 1, name: "applicant_phone" },
                 { step: 1, name: "pid_type" },
                 { step: 1, name: "pid_num" },
                 { step: 2, name: "boutique" },

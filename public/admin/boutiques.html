@@ -171,7 +171,12 @@ function renderApplication(app) {
   const owner = store.owner || {};
   const [label, statusClass] = statusLabel(app.review_status);
   const date = app.created_at ? new Date(app.created_at).toLocaleString("fr-FR") : "Date inconnue";
-  const gps = Number.isFinite(Number(app.lat)) && Number.isFinite(Number(app.lng))
+  const hasGps =
+    app.lat !== null && app.lat !== undefined && app.lat !== "" &&
+    app.lng !== null && app.lng !== undefined && app.lng !== "" &&
+    Number.isFinite(Number(app.lat)) && Number.isFinite(Number(app.lng));
+
+  const gps = hasGps
     ? `<a href="https://www.google.com/maps?q=${encodeURIComponent(app.lat + "," + app.lng)}" target="_blank" rel="noopener">Voir la position GPS</a>`
     : "Non renseigné";
 
@@ -188,8 +193,9 @@ function renderApplication(app) {
    <div class="sections">
     <section class="section">
      <h3>👤 Identité du vendeur</h3>
-     ${field("Nom", owner.full_name)}
-     ${field("Téléphone du compte", owner.phone)}
+     ${field("Nom complet du demandeur", app.applicant_name || owner.full_name)}
+     ${field("Téléphone de contact", app.applicant_phone || owner.phone)}
+     ${field("E-mail du demandeur", app.applicant_email)}
      ${field("Type de pièce", app.pid_type)}
      ${field("Numéro de pièce", app.pid_num)}
      ${field("Niveau", app.niveau)}
@@ -245,7 +251,8 @@ async function loadApplications() {
   const {data, error} = await supabaseClient
     .from("seller_applications")
     .select(`
-      id,user_id,store_id,niveau,statut,pid_type,pid_num,boutique,categorie,
+      id,user_id,store_id,niveau,statut,applicant_name,applicant_phone,
+      applicant_email,pid_type,pid_num,boutique,categorie,
       commune,quartier,adresse,lat,lng,rccm,idnat,nif,patente,importateur,
       momo_operateur,momo_numero,momo_titulaire,banque,docs,review_status,
       review_note,created_at,
