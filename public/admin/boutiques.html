@@ -2,172 +2,381 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zando Admin — Boutiques</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zando — Candidatures vendeurs</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root{--primary:#111827;--accent:#f59e0b;--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#667085;--border:#e5e9f0;--ok:#16a34a;--warn:#d97706;--bad:#dc2626}
+:root{--bg:#f4f6fa;--card:#fff;--text:#172033;--muted:#687386;--primary:#1456d8;--green:#13834b;--red:#c73535;--orange:#b56b00;--border:#e4e8ef}
 *{box-sizing:border-box}
-body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
-header{background:var(--primary);color:#fff;padding:12px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
-.brand{font-weight:800;font-size:18px}.brand span{color:var(--accent)}
-nav{display:flex;flex-wrap:wrap;gap:6px}
-nav a{color:#cbd5e1;text-decoration:none;padding:6px 10px;border-radius:8px;font-size:14px}
-nav a.active,nav a:hover{background:rgba(255,255,255,.12);color:#fff}
-#logoutBtn{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 10px;font-size:14px}
-main{max-width:900px;margin:0 auto;padding:16px}
-h1{font-size:22px;margin:4px 0 12px}
-.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
-.filters button{border:1px solid var(--border);background:#fff;border-radius:999px;padding:8px 14px;font-size:14px;cursor:pointer}
-.filters button.on{background:var(--primary);color:#fff;border-color:var(--primary)}
-.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px}
-.row{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
-.name{font-weight:700;font-size:17px}
-.meta{color:var(--muted);font-size:13px;margin-top:4px;line-height:1.5}
-.desc{margin:8px 0 0;font-size:14px}
-.badge{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
-.b-pending{background:#fef3c7;color:var(--warn)}.b-active{background:#dcfce7;color:var(--ok)}.b-suspended{background:#fee2e2;color:var(--bad)}
-.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.actions button{border:0;border-radius:10px;padding:10px 14px;font-size:14px;font-weight:600;cursor:pointer;color:#fff}
-.go{background:var(--ok)}.stop{background:var(--bad)}
-.empty{text-align:center;color:var(--muted);padding:30px 10px}
-#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--primary);color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;display:none;max-width:90%;z-index:10}
-#toast.err{background:var(--bad)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
+header{background:#102b52;color:white;padding:18px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+header h1{font-size:20px;margin:0}
+header p{margin:5px 0 0;color:#d5e1f4;font-size:13px}
+button{border:0;border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer}
+button:disabled{opacity:.55;cursor:not-allowed}
+.logout{background:#fff;color:#102b52}
+main{max-width:1150px;margin:24px auto;padding:0 15px}
+.toolbar{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:18px}
+.tab{background:#e8edf5;color:#26344b}
+.tab.active{background:var(--primary);color:white}
+#refresh{background:#172f52;color:white;margin-left:auto}
+#message{padding:12px;border-radius:8px;margin:12px 0;display:none}
+#message.error{display:block;background:#ffe8e8;color:#a32020}
+#message.success{display:block;background:#e4f7ec;color:#12683b}
+#loading{text-align:center;padding:35px;color:var(--muted)}
+#empty{display:none;text-align:center;background:white;padding:30px;border-radius:12px;color:var(--muted)}
+.application{background:var(--card);border:1px solid var(--border);border-radius:13px;margin-bottom:16px;padding:18px;box-shadow:0 3px 12px #14213b08}
+.app-head{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:13px;margin-bottom:14px}
+.app-head h2{font-size:18px;margin:0 0 5px}
+.muted{color:var(--muted);font-size:13px}
+.status{padding:6px 10px;border-radius:20px;font-size:12px;font-weight:bold;height:max-content}
+.pending{background:#fff1d7;color:#8a5500}
+.approved{background:#def5e7;color:#12683b}
+.rejected{background:#ffe3e3;color:#a32020}
+.sections{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.section{background:#f8f9fc;border:1px solid var(--border);border-radius:9px;padding:12px;min-width:0}
+.section h3{font-size:14px;margin:0 0 10px;color:#173d70}
+.item{font-size:13px;margin:7px 0;overflow-wrap:anywhere}
+.item strong{color:#38445a}
+.documents a{display:block;margin:8px 0;color:var(--primary);font-size:13px;overflow-wrap:anywhere}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:15px;padding-top:13px;border-top:1px solid var(--border)}
+.approve{background:var(--green);color:white}
+.reject{background:var(--red);color:white}
+.note{margin-top:12px;padding:10px;background:#fff3f3;border-radius:8px;font-size:13px}
+@media(max-width:550px){main{margin:15px auto}.application{padding:13px}.app-head h2{font-size:16px}#refresh{margin-left:0}}
 </style>
 </head>
 <body>
 <header>
-  <div class="brand">Zando<span>Admin</span></div>
-  <nav>
-    <a href="index.html">📊 Tableau de bord</a>
-    <a href="commandes.html">📦 Commandes</a>
-    <a href="produits.html">🛍️ Produits</a>
-    <a href="boutiques.html" class="active">🏪 Vendeurs</a>
-  </nav>
-  <button id="logoutBtn">Déconnexion</button>
+ <div><h1>🛍️ Zando — Candidatures vendeurs</h1><p>Examen et validation des demandes d'ouverture de boutique</p></div>
+ <button class="logout" id="logoutBtn">Déconnexion</button>
 </header>
 <main>
-  <h1>Boutiques vendeurs</h1>
-  <div class="filters" id="filters"></div>
-  <div id="list"><div class="empty">Chargement…</div></div>
+ <div id="message"></div>
+ <div class="toolbar">
+  <button class="tab active" data-filter="pending">En attente</button>
+  <button class="tab" data-filter="approved">Approuvées</button>
+  <button class="tab" data-filter="rejected">Rejetées</button>
+  <button class="tab" data-filter="all">Toutes</button>
+  <button id="refresh">↻ Actualiser</button>
+ </div>
+ <div id="loading">Chargement des candidatures…</div>
+ <div id="applications"></div>
+ <div id="empty">Aucune candidature dans cette catégorie.</div>
 </main>
-<div id="toast"></div>
+
 <script>
 const SUPABASE_URL = "https://kcrliiinrjlrcspnaeac.supabase.co";
 const SUPABASE_KEY = "sb_publishable_iv3rzG16WGv7e7DObdzCNw_dDs4VDM3";
+
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  }
 });
 
-const LABELS = { pending: "En attente", active: "Actives", suspended: "Suspendues", all: "Toutes" };
-const BADGES = { pending: "En attente", active: "Active", suspended: "Suspendue" };
-let stores = [];
-let filter = "pending";
+let applications = [];
+let currentFilter = "pending";
 
-function esc(v) {
-  return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) {
-    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
-  });
+const $ = id => document.getElementById(id);
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#039;"
+  })[char]);
 }
 
-function toast(msg, isError) {
-  const t = document.getElementById("toast");
-  t.textContent = msg;
-  t.className = isError ? "err" : "";
-  t.style.display = "block";
-  setTimeout(function () { t.style.display = "none"; }, 3500);
+function showMessage(message, type = "success") {
+  const box = $("message");
+  box.textContent = message;
+  box.className = type;
+  box.style.display = "block";
+  window.scrollTo({top:0,behavior:"smooth"});
 }
 
-async function isAdmin() {
-  try {
-    const { data: { user }, error } = await supabaseClient.auth.getUser();
-    if (error || !user) return false;
-    const { data: profile, error: pErr } = await supabaseClient
-      .from("profiles").select("role").eq("id", user.id).single();
-    return !pErr && !!profile && profile.role === "admin";
-  } catch (e) {
-    return false;
-  }
+function hideMessage() {
+  $("message").style.display = "none";
 }
 
-async function loadStores() {
-  const { data, error } = await supabaseClient
-    .from("stores")
-    .select("id, name, slug, description, status, created_at, owner:profiles!stores_owner_id_fkey(full_name, phone)")
-    .order("created_at", { ascending: false });
-  if (error) {
-    console.error("❌ Chargement boutiques :", error);
-    document.getElementById("list").innerHTML = '<div class="empty">Impossible de charger les boutiques.</div>';
-    return;
-  }
-  stores = data || [];
-  render();
+function displayValue(value) {
+  if (value === null || value === undefined || value === "") return "Non renseigné";
+  if (typeof value === "boolean") return value ? "Oui" : "Non";
+  return String(value);
 }
 
-function render() {
-  const counts = { all: stores.length, pending: 0, active: 0, suspended: 0 };
-  stores.forEach(function (s) { if (counts[s.status] !== undefined) counts[s.status]++; });
+function field(label, value) {
+  return `<div class="item"><strong>${escapeHtml(label)} :</strong> ${escapeHtml(displayValue(value))}</div>`;
+}
 
-  document.getElementById("filters").innerHTML = ["pending", "active", "suspended", "all"].map(function (k) {
-    return '<button data-filter="' + k + '" class="' + (filter === k ? "on" : "") + '">' +
-      LABELS[k] + " (" + counts[k] + ")</button>";
-  }).join("");
+function statusLabel(status) {
+  if (status === "approved") return ["Approuvée","approved"];
+  if (status === "rejected") return ["Rejetée","rejected"];
+  return ["En attente","pending"];
+}
 
-  const shown = stores.filter(function (s) { return filter === "all" || s.status === filter; });
-  if (!shown.length) {
-    document.getElementById("list").innerHTML = '<div class="empty">Aucune boutique dans cette catégorie.</div>';
-    return;
-  }
+function collectDocumentPaths(value, userId, label = "Document", output = [], seen = new Set()) {
+  if (!value) return output;
 
-  document.getElementById("list").innerHTML = shown.map(function (s) {
-    const owner = s.owner || {};
-    let actions = "";
-    if (s.status === "pending") {
-      actions = '<button class="go" data-id="' + esc(s.id) + '" data-status="active" data-label="Approuver">✅ Approuver</button>' +
-                '<button class="stop" data-id="' + esc(s.id) + '" data-status="suspended" data-label="Refuser">⛔ Refuser</button>';
-    } else if (s.status === "active") {
-      actions = '<button class="stop" data-id="' + esc(s.id) + '" data-status="suspended" data-label="Suspendre">⏸️ Suspendre</button>';
-    } else {
-      actions = '<button class="go" data-id="' + esc(s.id) + '" data-status="active" data-label="Réactiver">▶️ Réactiver</button>';
+  if (typeof value === "string") {
+    const path = value.trim();
+    if (
+      path.startsWith(userId + "/") &&
+      !/^https?:\/\//i.test(path) &&
+      !seen.has(path)
+    ) {
+      seen.add(path);
+      output.push({label, path});
     }
-    return '<div class="card">' +
-      '<div class="row"><div class="name">' + esc(s.name) + '</div>' +
-      '<span class="badge b-' + esc(s.status) + '">' + esc(BADGES[s.status] || s.status) + '</span></div>' +
-      '<div class="meta">Propriétaire : ' + esc(owner.full_name || "—") + ' · ' + esc(owner.phone || "—") +
-      '<br>Créée le ' + esc(new Date(s.created_at).toLocaleDateString("fr-FR")) + ' · ' + esc(s.slug) + '</div>' +
-      (s.description ? '<p class="desc">' + esc(s.description) + '</p>' : "") +
-      '<div class="actions">' + actions + '</div></div>';
-  }).join("");
+    return output;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item, index) =>
+      collectDocumentPaths(item, userId, label + " " + (index + 1), output, seen)
+    );
+    return output;
+  }
+
+  if (typeof value === "object") {
+    Object.entries(value).forEach(([key, item]) => {
+      collectDocumentPaths(item, userId, key.replace(/[_-]/g, " "), output, seen);
+    });
+  }
+  return output;
 }
 
-async function setStatus(id, status, label) {
-  if (!confirm(label + " cette boutique ?")) return;
-  const { error } = await supabaseClient.rpc("admin_set_store_status", { p_store_id: id, p_status: status });
+async function renderDocuments(application) {
+  const paths = collectDocumentPaths(application.docs, application.user_id);
+  if (!paths.length) return '<p class="muted">Aucun chemin de document reconnu dans ce dossier.</p>';
+
+  const links = [];
+  for (const doc of paths) {
+    const {data, error} = await supabaseClient.storage
+      .from("seller-docs")
+      .createSignedUrl(doc.path, 300);
+
+    if (error || !data?.signedUrl) {
+      links.push(`<div class="muted">${escapeHtml(doc.label)} : lien indisponible</div>`);
+    } else {
+      links.push(`<a href="${escapeHtml(data.signedUrl)}" target="_blank" rel="noopener noreferrer">📄 ${escapeHtml(doc.label)} — Consulter</a>`);
+    }
+  }
+  return links.join("");
+}
+
+function renderApplication(app) {
+  const store = app.store || {};
+  const owner = store.owner || {};
+  const [label, statusClass] = statusLabel(app.review_status);
+  const date = app.created_at ? new Date(app.created_at).toLocaleString("fr-FR") : "Date inconnue";
+  const gps = Number.isFinite(Number(app.lat)) && Number.isFinite(Number(app.lng))
+    ? `<a href="https://www.google.com/maps?q=${encodeURIComponent(app.lat + "," + app.lng)}" target="_blank" rel="noopener">Voir la position GPS</a>`
+    : "Non renseigné";
+
+  return `
+  <article class="application" id="app-${escapeHtml(app.id)}">
+   <div class="app-head">
+    <div>
+     <h2>${escapeHtml(app.boutique || store.name || "Boutique sans nom")}</h2>
+     <div class="muted">Candidature du ${escapeHtml(date)}</div>
+     <div class="muted">Référence : ${escapeHtml(app.id)}</div>
+    </div>
+    <span class="status ${statusClass}">${label}</span>
+   </div>
+   <div class="sections">
+    <section class="section">
+     <h3>👤 Identité du vendeur</h3>
+     ${field("Nom", owner.full_name)}
+     ${field("Téléphone du compte", owner.phone)}
+     ${field("Type de pièce", app.pid_type)}
+     ${field("Numéro de pièce", app.pid_num)}
+     ${field("Niveau", app.niveau)}
+     ${field("Statut du dossier", app.statut)}
+     ${field("Identifiant utilisateur", app.user_id)}
+    </section>
+    <section class="section">
+     <h3>🏪 Informations de la boutique</h3>
+     ${field("Nom", app.boutique || store.name)}
+     ${field("Catégorie", app.categorie)}
+     ${field("Commune", app.commune)}
+     ${field("Quartier", app.quartier)}
+     ${field("Adresse", app.adresse)}
+     <div class="item"><strong>Localisation :</strong> ${gps}</div>
+     ${field("Statut boutique", store.status)}
+     ${field("Slug", store.slug)}
+    </section>
+    <section class="section">
+     <h3>📑 Informations légales</h3>
+     ${field("RCCM", app.rccm)}
+     ${field("ID National", app.idnat)}
+     ${field("NIF", app.nif)}
+     ${field("Patente", app.patente)}
+     ${field("Importateur", app.importateur)}
+    </section>
+    <section class="section">
+     <h3>💳 Paiements et coordonnées</h3>
+     ${field("Opérateur Mobile Money", app.momo_operateur)}
+     ${field("Numéro Mobile Money", app.momo_numero)}
+     ${field("Titulaire Mobile Money", app.momo_titulaire)}
+     ${field("Banque", app.banque)}
+    </section>
+    <section class="section">
+     <h3>📎 Documents justificatifs</h3>
+     <div class="documents" id="docs-${escapeHtml(app.id)}">Préparation des liens sécurisés…</div>
+    </section>
+   </div>
+   ${app.review_note ? `<div class="note"><strong>Note administrative :</strong> ${escapeHtml(app.review_note)}</div>` : ""}
+   ${app.review_status === "pending" ? `
+   <div class="actions">
+    <button class="approve" data-action="approve" data-id="${escapeHtml(app.id)}">✓ Approuver la candidature</button>
+    <button class="reject" data-action="reject" data-id="${escapeHtml(app.id)}">✕ Rejeter la candidature</button>
+   </div>` : ""}
+  </article>`;
+}
+
+async function loadApplications() {
+  $("loading").style.display = "block";
+  $("applications").innerHTML = "";
+  $("empty").style.display = "none";
+  hideMessage();
+
+  const {data, error} = await supabaseClient
+    .from("seller_applications")
+    .select(`
+      id,user_id,store_id,niveau,statut,pid_type,pid_num,boutique,categorie,
+      commune,quartier,adresse,lat,lng,rccm,idnat,nif,patente,importateur,
+      momo_operateur,momo_numero,momo_titulaire,banque,docs,review_status,
+      review_note,created_at,
+      store:stores!seller_applications_store_id_fkey(
+        id,name,slug,status,
+        owner:profiles!stores_owner_id_fkey(full_name,phone)
+      )
+    `)
+    .order("created_at", {ascending:false});
+
+  $("loading").style.display = "none";
+
   if (error) {
-    console.error("❌ Changement de statut :", error);
-    toast("❌ " + error.message, true);
+    showMessage("Erreur de chargement : " + error.message, "error");
     return;
   }
-  toast("✅ Boutique mise à jour");
-  await loadStores();
+
+  applications = data || [];
+  renderList();
 }
 
-document.addEventListener("click", function (e) {
-  const f = e.target.closest("[data-filter]");
-  if (f) { filter = f.getAttribute("data-filter"); render(); return; }
-  const b = e.target.closest("[data-status]");
-  if (b) { setStatus(b.getAttribute("data-id"), b.getAttribute("data-status"), b.getAttribute("data-label")); }
+async function renderList() {
+  const filtered = applications.filter(app =>
+    currentFilter === "all" || (app.review_status || "pending") === currentFilter
+  );
+
+  $("applications").innerHTML = filtered.map(renderApplication).join("");
+  $("empty").style.display = filtered.length ? "none" : "block";
+
+  for (const app of filtered) {
+    const target = $("docs-" + app.id);
+    if (target) target.innerHTML = await renderDocuments(app);
+  }
+}
+
+async function approveApplication(id, button) {
+  if (!confirm("Confirmer l'approbation de cette candidature ? Le compte deviendra vendeur et la boutique sera activée.")) return;
+
+  button.disabled = true;
+  button.textContent = "Validation…";
+
+  const {error} = await supabaseClient.rpc(
+    "admin_approve_seller_application",
+    {p_application_id:id}
+  );
+
+  if (error) {
+    button.disabled = false;
+    button.textContent = "✓ Approuver la candidature";
+    showMessage("Échec de l'approbation : " + error.message, "error");
+    return;
+  }
+
+  showMessage("Candidature approuvée. Le compte vendeur et la boutique ont été activés.");
+  await loadApplications();
+}
+
+async function rejectApplication(id, button) {
+  const note = prompt("Motif du rejet (facultatif) :");
+  if (note === null) return;
+
+  if (!confirm("Confirmer le rejet de cette candidature ?")) return;
+
+  button.disabled = true;
+  button.textContent = "Rejet…";
+
+  const {error} = await supabaseClient.rpc(
+    "admin_reject_seller_application",
+    {p_application_id:id,p_note:note.trim() || null}
+  );
+
+  if (error) {
+    button.disabled = false;
+    button.textContent = "✕ Rejeter la candidature";
+    showMessage("Échec du rejet : " + error.message, "error");
+    return;
+  }
+
+  showMessage("La candidature a été rejetée.");
+  await loadApplications();
+}
+
+$("applications").addEventListener("click", event => {
+  const button = event.target.closest("button[data-action]");
+  if (!button) return;
+
+  const id = button.dataset.id;
+  if (button.dataset.action === "approve") approveApplication(id, button);
+  if (button.dataset.action === "reject") rejectApplication(id, button);
 });
 
-document.getElementById("logoutBtn").addEventListener("click", async function () {
+document.querySelectorAll(".tab").forEach(button => {
+  button.addEventListener("click", () => {
+    currentFilter = button.dataset.filter;
+    document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
+    button.classList.add("active");
+    renderList();
+  });
+});
+
+$("refresh").addEventListener("click", loadApplications);
+
+$("logoutBtn").addEventListener("click", async () => {
   await supabaseClient.auth.signOut();
-  window.location.href = "index.html";
+  window.location.href = "../login.html";
 });
 
-(async function init() {
-  if (!(await isAdmin())) { window.location.href = "index.html"; return; }
-  await loadStores();
-})();
+async function init() {
+  const {data:{user}, error} = await supabaseClient.auth.getUser();
+
+  if (error || !user) {
+    window.location.href = "../login.html";
+    return;
+  }
+
+  const {data:profile, error:profileError} = await supabaseClient
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError || profile?.role !== "admin") {
+    alert("Accès réservé à l'administration.");
+    window.location.href = "../index.html";
+    return;
+  }
+
+  await loadApplications();
+}
+
+init();
 </script>
 </body>
 </html>
