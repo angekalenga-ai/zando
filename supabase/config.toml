@@ -1,0 +1,4 @@
+project_id = "kcrliiinrjlrcspnaeac"
+
+[functions.zando-assistant]
+verify_jwt = true
