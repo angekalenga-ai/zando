@@ -30,13 +30,15 @@
         .message.assistant { border: 1px solid var(--line); background: #f8fafc; }
         .message.user { margin-left: auto; background: var(--ink); color: #fff; }
         .message.status { color: var(--muted); background: transparent; padding-left: 0; }
+        .quick-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 22px 10px; }
+        .quick-action { border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 999px; padding: 8px 12px; font-size: 13px; }
         .composer-wrap { padding: 16px 22px 18px; border-top: 1px solid var(--line); }
         .composer { display: flex; gap: 10px; }
         .composer input { min-width: 0; }
         .composer .primary-button { flex: 0 0 auto; }
         .disclaimer { margin-top: 10px; }
         [hidden] { display: none !important; }
-        @media (max-width: 520px) { body { padding: 0; } .assistant-shell { min-height: 100vh; border: 0; border-radius: 0; } .assistant-header { padding: 14px 16px; } .chat-area { padding: 18px 16px; } .composer-wrap { padding: 13px 16px 16px; } .composer { gap: 7px; } .composer .primary-button { padding: 0 12px; } }
+        @media (max-width: 520px) { body { padding: 0; } .assistant-shell { min-height: 100vh; border: 0; border-radius: 0; } .assistant-header { padding: 14px 16px; } .chat-area { padding: 18px 16px; } .quick-actions { padding: 0 16px 10px; } .composer-wrap { padding: 13px 16px 16px; } .composer { gap: 7px; } .composer .primary-button { padding: 0 12px; } }
     </style>
 </head>
 <body>
@@ -68,6 +70,8 @@
         <section class="chat-area" id="chatArea" aria-live="polite" aria-label="Conversation" hidden>
             <p class="message assistant">Bonjour ! Je suis l’assistant Zando. Je peux vous aider à explorer les produits disponibles et à mieux utiliser la marketplace. Que recherchez-vous ?</p>
         </section>
+
+        <div class="quick-actions" id="quickActions" aria-label="Suggestions rapides" hidden></div>
 
         <div class="composer-wrap" id="composerWrap" hidden>
             <form class="composer" id="chatForm">
