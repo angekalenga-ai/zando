@@ -2,3 +2,9 @@ project_id = "kcrliiinrjlrcspnaeac"
 
 [functions.zando-assistant]
 verify_jwt = true
+
+[functions.zando-seller-coach]
+verify_jwt = true
+
+[functions.zando-admin-coach]
+verify_jwt = true
