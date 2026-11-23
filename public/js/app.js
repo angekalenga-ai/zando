@@ -3080,6 +3080,18 @@ function showLoginForm() {
                 Se connecter
             </button>
 
+            <div style="text-align:center;margin:16px 0;color:#64748b;">
+                — ou —
+            </div>
+
+            <button
+                type="button"
+                id="googleLoginBtn"
+                style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:8px;background:white;color:#1f2937;font-weight:700;cursor:pointer;"
+            >
+                Continuer avec Google
+            </button>
+
         </form>
 
         <div
@@ -3123,6 +3135,38 @@ function showLoginForm() {
         "submit",
         loginZando
     );
+
+    const googleButton = document.getElementById("googleLoginBtn");
+
+    googleButton?.addEventListener("click", async () => {
+        const message = document.getElementById("loginMessage");
+
+        googleButton.disabled = true;
+        if (message) {
+            message.textContent = "Redirection vers Google...";
+        }
+
+        try {
+            const { error } = await supabaseClient.auth.signInWithOAuth({
+                provider: "google",
+                options: {
+                    redirectTo: "https://angekalenga-ai.github.io/zando/index.html"
+                }
+            });
+
+            if (error) throw error;
+
+        } catch (error) {
+            console.error("Erreur connexion Google :", error);
+
+            if (message) {
+                message.textContent =
+                    "Connexion Google impossible : " + (error.message || error);
+            }
+
+            googleButton.disabled = false;
+        }
+    });
 
 }
 
