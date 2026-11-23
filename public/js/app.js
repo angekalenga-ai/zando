@@ -3103,11 +3103,10 @@ function showLoginForm() {
 
             <button
                 type="button"
-                disabled
-                title="La connexion par SMS sera activée ultérieurement"
-                style="width:100%;padding:12px;margin-top:12px;border:1px solid #d1d5db;border-radius:8px;background:#f3f4f6;color:#64748b;font-weight:700;cursor:not-allowed;opacity:0.8;"
+                id="phoneLoginBtn"
+                style="width:100%;padding:12px;margin-top:12px;border:1px solid #d1d5db;border-radius:8px;background:#f8fafc;color:#1f2937;font-weight:700;cursor:pointer;"
             >
-                📱 Connexion par téléphone — Bientôt disponible
+                📱 Continuer avec un numéro de téléphone
             </button>
 
         </form>
@@ -3186,6 +3185,112 @@ function showLoginForm() {
         }
     });
 
+    const phoneButton = document.getElementById("phoneLoginBtn");
+
+    phoneButton?.addEventListener("click", showPhoneLoginPreview);
+
+}
+
+
+/* =====================================================
+   PHONE LOGIN PREVIEW
+===================================================== */
+
+function showPhoneLoginPreview() {
+    showModal(`
+        <h2>Connexion par téléphone 📱</h2>
+        <p>Entrez votre numéro au format international.</p>
+
+        <form id="phonePreviewForm">
+            <label for="phonePreviewNumber">Numéro de téléphone</label>
+            <input
+                type="tel"
+                id="phonePreviewNumber"
+                required
+                autocomplete="tel"
+                placeholder="+243 8XX XXX XXX"
+                style="width:100%;padding:12px;margin:8px 0 15px;border:1px solid #d1d5db;border-radius:8px;"
+            >
+
+            <button
+                type="submit"
+                class="btn btn-primary"
+                style="width:100%;"
+            >
+                Continuer
+            </button>
+        </form>
+
+        <p id="phonePreviewMessage" style="margin-top:12px;color:#64748b;"></p>
+
+        <button
+            type="button"
+            id="phonePreviewBack"
+            style="margin-top:10px;border:0;background:none;color:#2563eb;font-weight:700;cursor:pointer;"
+        >
+            ← Retour à la connexion
+        </button>
+    `);
+
+    document.getElementById("phonePreviewForm")?.addEventListener("submit", (event) => {
+        event.preventDefault();
+
+        const phone = document.getElementById("phonePreviewNumber")?.value.trim();
+        const message = document.getElementById("phonePreviewMessage");
+
+        if (!phone || !/^\+[1-9]\d{7,14}$/.test(phone.replace(/[\s().-]/g, ""))) {
+            if (message) {
+                message.textContent = "Veuillez saisir un numéro international valide, par exemple +243812345678.";
+            }
+            return;
+        }
+
+        showPhoneOtpPreview(phone.replace(/[\s().-]/g, ""));
+    });
+
+    document.getElementById("phonePreviewBack")?.addEventListener("click", showLoginForm);
+}
+
+
+function showPhoneOtpPreview(phone) {
+    showModal(`
+        <h2>Vérification du numéro 🔐</h2>
+        <p>Numéro saisi : <strong>${escapeHTML(phone)}</strong></p>
+
+        <p style="padding:12px;background:#fff7ed;border-radius:8px;color:#9a3412;">
+            L'envoi des SMS n'est pas encore activé sur Zando. Aucun code n'a été envoyé.
+        </p>
+
+        <label for="phonePreviewOtp">Code de vérification à 6 chiffres</label>
+        <input
+            type="text"
+            id="phonePreviewOtp"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            maxlength="6"
+            placeholder="••••••"
+            disabled
+            style="width:100%;padding:12px;margin:8px 0 15px;border:1px solid #d1d5db;border-radius:8px;text-align:center;letter-spacing:8px;"
+        >
+
+        <button
+            type="button"
+            disabled
+            style="width:100%;padding:12px;border:0;border-radius:8px;background:#e5e7eb;color:#64748b;font-weight:700;cursor:not-allowed;"
+        >
+            Vérification bientôt disponible
+        </button>
+
+        <button
+            type="button"
+            id="phoneOtpBack"
+            style="margin-top:12px;border:0;background:none;color:#2563eb;font-weight:700;cursor:pointer;"
+        >
+            ← Modifier le numéro
+        </button>
+    `);
+
+    document.getElementById("phoneOtpBack")?.addEventListener("click", showPhoneLoginPreview);
 }
 
 
