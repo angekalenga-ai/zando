@@ -2787,6 +2787,9 @@ function showRegisterForm() {
             >
 
             <label>Numéro de téléphone</label>
+            <small style="display:block;margin:-8px 0 12px;color:#64748b;">
+                La vérification par SMS sera activée ultérieurement.
+            </small>
 
             <input
                 type="tel"
@@ -3087,9 +3090,24 @@ function showLoginForm() {
             <button
                 type="button"
                 id="googleLoginBtn"
-                style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:8px;background:white;color:#1f2937;font-weight:700;cursor:pointer;"
+                style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:8px;background:white;color:#1f2937;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;"
             >
+                <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
+                    <path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11a9.4 9.4 0 0 1-4.1 6.2v5.1h6.6c3.9-3.6 6.1-8.8 6.1-15z"/>
+                    <path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.5-4.8l-6.6-5.1c-1.8 1.2-4.1 2-6.9 2-5.3 0-9.8-3.6-11.4-8.4H5.8v5.3A20 20 0 0 0 24 44z"/>
+                    <path fill="#FBBC05" d="M12.6 27.7a12 12 0 0 1 0-7.4V15H5.8a20 20 0 0 0 0 18z"/>
+                    <path fill="#EA4335" d="M24 11.9c3 0 5.7 1 7.8 3.1l5.8-5.8C34.1 5.8 29.5 4 24 4A20 20 0 0 0 5.8 15l6.8 5.3c1.6-4.8 6.1-8.4 11.4-8.4z"/>
+                </svg>
                 Continuer avec Google
+            </button>
+
+            <button
+                type="button"
+                disabled
+                title="La connexion par SMS sera activée ultérieurement"
+                style="width:100%;padding:12px;margin-top:12px;border:1px solid #d1d5db;border-radius:8px;background:#f3f4f6;color:#64748b;font-weight:700;cursor:not-allowed;opacity:0.8;"
+            >
+                📱 Connexion par téléphone — Bientôt disponible
             </button>
 
         </form>
