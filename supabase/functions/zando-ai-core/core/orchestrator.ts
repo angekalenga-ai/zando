@@ -8,7 +8,20 @@ import type {
 } from "./types.ts";
 
 import { getAllowedAgents } from "./agents.ts";
-import { createAgentPlan } from "./planner.ts";
+import {
+  createAgentPlan,
+  detectLanguage,
+} from "./planner.ts";
+
+export function resolveLanguage(
+  language: SupportedLanguage | "auto",
+  message: string,
+): SupportedLanguage | "auto" {
+  return language === "auto"
+    ? detectLanguage(message)
+    : language;
+}
+
 import { executeAgentTasks } from "./executor.ts";
 import { loadAgentMemories } from "./memory.ts";
 import type { MemoryConfig } from "./memory.ts";
@@ -243,6 +256,11 @@ export async function runOrchestration(
     role,
   });
 
+  const effectiveLanguage = resolveLanguage(
+    input.language,
+    input.message,
+  );
+
   let agentMemories: Partial<
     Record<AgentId, import("./types.ts").AgentMemoryContext>
   > = {};
@@ -265,7 +283,7 @@ export async function runOrchestration(
     requestId: input.requestId,
     userId: input.userId,
     role,
-    language: input.language,
+    language: effectiveLanguage,
     originalMessage: input.message,
     allowedAgents,
     deadlineAt,
@@ -301,7 +319,7 @@ export async function runOrchestration(
 
   const answer = await synthesize(
     input.message,
-    input.language,
+    effectiveLanguage,
     results,
     {
       apiKey: input.apiKey,

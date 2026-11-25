@@ -2,6 +2,7 @@ import type {
   AgentId,
   AgentPlan,
   AgentTask,
+  SupportedLanguage,
 } from "./types.ts";
 
 import {
@@ -10,6 +11,25 @@ import {
 
 const MAX_SPECIALISTS = 3;
 
+const LANGUAGE_PATTERNS: Record<SupportedLanguage, RegExp[]> = {
+  fr: [
+    /\b(bonjour|salut|merci|comment|pourquoi|combien|je|mon|ma|mes|vous|nous|avec|pour|est|une|des|les|dans|faire|veux|voudrais)\b/,
+    /\b(est ce que|s il vous plait|j ai besoin|je voudrais|je veux)\b/,
+  ],
+  ln: [
+    /\b(mbote|mbote na yo|nalingi|nazali|nakoki|naza|oyo|wana|ndenge|nini|boni|pesa|kosomba|koteka|biloko|mosala|makambo|ebele|moke|te)\b/,
+    /\b(nalingi kosomba|nalingi koteka|nasengi yo|okoki kosalisa)\b/,
+  ],
+  sw: [
+    /\b(habari|tafadhali|asante|nina|nataka|naweza|ninahitaji|bei|bidhaa|nunua|kuuza|duka|bidhaa|mzigo|agiza|vipi|nini|yangu|yako|kwangu|sana|ndiyo|hapana)\b/,
+    /\b(nataka kununua|nataka kuuza|naomba msaada|unaweza kusaidia)\b/,
+  ],
+  en: [
+    /\b(hello|hi|please|thanks|thank|how|what|why|where|when|who|can|could|would|should|i|my|me|we|you|your|the|is|are|for|with|need|want|help)\b/,
+    /\b(i want|i need|how much|help me|can you)\b/,
+  ],
+};
+
 const ROUTES: ReadonlyArray<{
   agent: AgentId;
   patterns: RegExp[];
@@ -17,53 +37,100 @@ const ROUTES: ReadonlyArray<{
   {
     agent: "security",
     patterns: [
-      /fraude|piratage|sécurité|securite|attaque|arnaque|hackage/,
+      /\b(fraude|piratage|securite|attaque|arnaque|hackage|scam|fraud|hacked|hack|security|wizi|utapeli|udanganyifu|pirate|piratee|vole|volee|mot de passe|password|bakoti|kozanga|ndingisa|imedukuliwa|ruhusa|kokosa|compromis|compromised|connexion|inconnue|suspecte|login|suspicious|akoti|ayebi|kuingia|kusikojulikana|donnees|personnelles|divulguees|fuite|ebimi|taarifa|binafsi|zimevuja|leaked|leak|breach|stolen|unauthorized)\b/,
+    ],
+  },
+  {
+    agent: "support",
+    patterns: [
+      /\b(reclamation|reclamations|plainte|plaintes|remboursement|rembourser|rembourse|remboursez|paiement echoue|paiement refuse|double paiement|produit defectueux|article defectueux|defectueux|non conforme|incomplet|manquant|probleme|assistance|malalamiko|malalamiko yangu|kurejeshewa|rudisha pesa|marejesho|malipo yameshindikana|imelipwa mara mbili|imeharibika|tatizo|msaada|likambo|mokakatano|kozongisa mbongo|mbongo na ngai|bafuti ngai mbala mibale|complaint|complaints|complain|refund|refunded|refunds|payment failed|payment declined|charged twice|defective|damaged|wrong item|missing item|incomplete|problem|issue|assistance)\b/,
     ],
   },
   {
     agent: "seller",
     patterns: [
-      /vendeur|boutique|mon stock|mes produits|mes ventes|catalogue vendeur/,
+      /\b(vendeur|boutique|stock|mes produits|mes ventes|catalogue vendeur|my store|my products|my sales|seller|shop|duka langu|biashara yangu|bidhaa zangu|mali yangu|nalingi koteka|koteka biloko na ngai|biloko na ngai)\b/,
     ],
   },
   {
     agent: "logistics",
     patterns: [
-      /livraison|livrer|expédition|expedition|transport|colis|livreur/,
+      /\b(livraison|livrer|expedition|transport|colis|livreur|delivery|deliver|shipping|parcel|courier|usafiri|usafirishaji|mzigo|kusafirisha|kupeleka|anwani|mpokeaji|retard|retarde|retardee|bloque|bloquee|frais|cout|tarif|eleki|mbongo|chelewa|kuchelewa|gharama|late|delayed|delay|fee|fees|cost)\b/,
     ],
   },
   {
     agent: "business",
     patterns: [
-      /business|stratégie|strategie|chiffre d'affaires|rentabilité|rentabilite|marketing|croissance/,
+      /\b(business|strategie|chiffre d affaires|rentabilite|marketing|croissance|profit|growth|revenue|strategy|faida|biashara|mapato|ukuaji|mkakati)\b/,
     ],
   },
   {
     agent: "language",
     patterns: [
-      /traduire|traduction|lingala|swahili|anglais|translate/,
+      /\b(traduire|traduction|lingala|swahili|anglais|translate|translation|tafsiri|kutafsiri)\b/,
     ],
   },
   {
     agent: "commerce",
     patterns: [
-      /produit|acheter|achat|prix|commande|comparaison|catalogue/,
+      /\b(produit|produits|chercher|cherche|rechercher|recherche|chaussure|chaussures|acheter|achat|prix|commande|comparaison|comparer|comparez|kokokanisa|kulinganisha|linganisha|comparison|comparing|catalogue|buy|purchase|price|order|product|products|compare|search|searching|find|looking for|shoes|koluka|luka|sapato|nunua|bei|talo|boni|bidhaa|ninatafuta|simu|bajeti|isiyozidi|dola|disponible|stock|inapatikana|recommande|recommander|conseille|makanisi|nipendekezee|recommend|recommendation|viatu|kutafuta|tafuta|natafuta|agiza|kuagiza|kosomba|somba|koteka)\b/,
     ],
   },
   {
     agent: "admin",
     patterns: [
-      /supervision|administration|tableau de bord|gouvernance/,
+      /\b(supervision|administration|tableau de bord|gouvernance|dashboard|management|admin|usimamizi|utawala|uongozi)\b/,
     ],
   },
 ];
 
-function normalizeMessage(message: string): string {
+export function normalizeMessage(message: string): string {
   return message
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
+    .replace(/[’']/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
+}
+
+export function detectLanguage(
+  message: string,
+): SupportedLanguage | "auto" {
+  const normalized = normalizeMessage(message);
+
+  if (normalized.length < 3) {
+    return "auto";
+  }
+
+  const scores = (
+    Object.entries(LANGUAGE_PATTERNS) as [
+      SupportedLanguage,
+      RegExp[],
+    ][]
+  ).map(([language, patterns]) => ({
+    language,
+    score: patterns.reduce(
+      (total, pattern) => total + (pattern.test(normalized) ? 1 : 0),
+      0,
+    ),
+  }));
+
+  scores.sort((a, b) => b.score - a.score);
+
+  const best = scores[0];
+  const second = scores[1];
+
+  if (!best || best.score < 2) {
+    return "auto";
+  }
+
+  if (second && best.score - second.score < 1) {
+    return "auto";
+  }
+
+  return best.language;
 }
 
 function detectAgents(

@@ -39,9 +39,9 @@ export const AGENT_REGISTRY: Readonly<Record<AgentId, AgentDefinition>> = {
   support: {
     id: "support",
     name: "Support",
-    description: "Assistance et accompagnement des utilisateurs.",
+    description: "Réclamations, remboursements, paiements, qualité des produits et assistance multilingue.",
     systemPrompt:
-      "Tu es l'agent Support de Zando Panafricain. Aide les utilisateurs avec patience et précision. Oriente-les vers le support humain si nécessaire.",
+      "Tu es l'agent Support de Zando Panafricain. Analyse les réclamations, demandes de remboursement, paiements échoués ou non confirmés, commandes incorrectes, produits défectueux ou incomplets et problèmes d'utilisation. Réponds avec patience, empathie et précision dans la langue de l'utilisateur (français, lingala, swahili ou anglais). Distingue les faits des hypothèses, demande uniquement les informations nécessaires, explique les prochaines étapes et oriente vers le support humain pour les cas complexes. Ne prétends jamais avoir effectué un remboursement, modifié une commande ou exécuté un paiement. Toute opération sensible exige une autorisation explicite et une validation humaine.",
   },
 
   business: {
