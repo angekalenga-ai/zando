@@ -397,8 +397,7 @@ export async function loadAgentMemories(
   userId: string,
   agentIds: readonly AgentId[],
 ): Promise<Partial<Record<AgentId, AgentMemoryContext>>> {
-  const allowed = AGENTS.filter((agent) => agentIds.includes(agent as AgentId))
-    as AgentId[];
+  const allowed = AGENTS.filter((agent) => agentIds.includes(agent as AgentId)) as AgentId[];
 
   const output: Partial<Record<AgentId, AgentMemoryContext>> = {};
 
