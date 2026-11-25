@@ -8,3 +8,6 @@ verify_jwt = true
 
 [functions.zando-admin-coach]
 verify_jwt = true
+
+[functions.zando-ai-core]
+verify_jwt = true

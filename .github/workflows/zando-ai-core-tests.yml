@@ -1,0 +1,47 @@
+name: ZANDO AI CORE - Tests et vérifications
+
+on:
+  push:
+    branches:
+      - main
+      - feature/zando-ai-core
+    paths:
+      - 'supabase/functions/zando-ai-core/**'
+      - '.github/workflows/zando-ai-core-tests.yml'
+
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'supabase/functions/zando-ai-core/**'
+      - '.github/workflows/zando-ai-core-tests.yml'
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zando-ai-core-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Vérifier ZANDO AI CORE
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Vérifier les types TypeScript
+        run: deno check supabase/functions/zando-ai-core/index.ts supabase/functions/zando-ai-core/core/agents_test.ts
+
+      - name: Exécuter les tests
+        run: deno test supabase/functions/zando-ai-core/core/agents_test.ts
